@@ -124,7 +124,6 @@ chmod +x *.sh
 Run the VPN setup script from the root of the cloned repository:
 
 ```sh
-cd ~/secure-remote-desktop-gateway  # Make sure you're in the repository root
 sudo ./setup_vpn.sh
 ```
 
@@ -135,7 +134,6 @@ This configures L2TP/IPsec VPN, policy routing, and firewall rules.
 Run the Remmina setup script from the root of the cloned repository:
 
 ```sh
-cd ~/secure-remote-desktop-gateway  # Make sure you're in the repository root
 ./setup_remmina.sh
 ```
 
@@ -146,7 +144,6 @@ This creates a Remmina RDP profile and launches Remmina.
 If you have issues connecting with Remmina, run:
 
 ```sh
-cd ~/secure-remote-desktop-gateway  # Make sure you're in the repository root
 ./remmina_troubleshooting.sh
 ```
 
