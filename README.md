@@ -39,7 +39,7 @@ Replace `user` with your username and `your_server_ip` with the actual IP addres
 ### 1. Clone the Repository
 
 ```sh
-git clone https://github.com/yourusername/secure-remote-desktop-gateway.git
+git clone https://github.com/HosseinBeheshti/secure-remote-desktop-gateway.git
 cd secure-remote-desktop-gateway
 ```
 
