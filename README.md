@@ -36,21 +36,11 @@ ssh user@your_server_ip
 
 Replace `user` with your username and `your_server_ip` with the actual IP address of your server.
 
-### 1. Get the Scripts
-
-Option 1: Download the scripts using curl or wget:
+### 1. Clone the Repository
 
 ```sh
-mkdir secure-remote-desktop-gateway
+git clone https://github.com/yourusername/secure-remote-desktop-gateway.git
 cd secure-remote-desktop-gateway
-wget https://example.com/download/secure-remote-desktop-gateway.tar.gz
-tar -xzf secure-remote-desktop-gateway.tar.gz
-```
-
-Option 2: Copy the scripts from your local machine:
-
-```sh
-scp -r /path/to/local/secure-remote-desktop-gateway user@your_server_ip:~/
 ```
 
 ### 2. Configure Your Environment
@@ -102,7 +92,7 @@ If you have issues connecting with Remmina, run:
 - **Firewall**: The scripts configure UFW and remind you to set up cloud provider firewall rules.
 - **Persistence**: Routing and firewall rules are made persistent across reboots.
 - **Security**: Change all default passwords after setup.
-- **VNC**: Connect to the server's IP on port 5901 using the credentials set in [`gateway-config.sh`](gateway-config.sh).
+- **VNC**: Connect to the server's IP on port 5901 using the credentials set in [`setup_server.sh`](setup_server.sh).
 
 ---
 
