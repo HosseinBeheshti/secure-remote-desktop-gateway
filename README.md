@@ -36,19 +36,69 @@ ssh user@your_server_ip
 
 Replace `user` with your username and `your_server_ip` with the actual IP address of your server.
 
-### 1. Clone the Repository
+### 1. Download Initial Scripts
+
+First, download the server setup script and create a configuration file:
 
 ```sh
+mkdir -p ~/secure-remote-desktop
+cd ~/secure-remote-desktop
+# Download setup_server.sh
+wget https://raw.githubusercontent.com/HosseinBeheshti/secure-remote-desktop-gateway/main/setup_server.sh
+# Download gateway_config.sh
+wget https://raw.githubusercontent.com/HosseinBeheshti/secure-remote-desktop-gateway/main/gateway_config.sh
+chmod +x *.sh
+```
+
+### 2. Configure VNC Settings
+
+Edit the gateway_config.sh file to update at least the VNC settings:
+
+```sh
+vim gateway_config.sh
+```
+
+Make sure to set:
+- VNC_USER
+- VNC_PASSWORD (change from the default)
+- VNC_RESOLUTION
+
+### 3. Run the Server Setup
+
+Run the server setup script to configure the VNC server:
+
+```sh
+sudo ./setup_server.sh
+```
+
+This installs all required packages, configures VNC, Remmina, and firewall.
+
+### 4. Connect to the VNC Server
+
+For the remaining steps, you should connect to the VNC server that was just set up. Use your VNC client to connect to the server:
+
+```
+[Server IP]:5901
+```
+
+Use the VNC password you configured in `gateway_config.sh`.
+
+### 5. Clone the Complete Repository
+
+Now that you're connected via VNC, clone the complete repository:
+
+```sh
+cd ~
 git clone https://github.com/HosseinBeheshti/secure-remote-desktop-gateway.git
 cd secure-remote-desktop-gateway
 ```
 
-### 2. Configure Your Environment
+### 6. Configure Your Environment
 
-Edit [`gateway-config.sh`](gateway-config.sh) and set all variables according to your environment:
+⚠️ **IMPORTANT**: Before proceeding further, you MUST modify the `gateway_config.sh` file with your specific settings:
 
 ```sh
-vim gateway-config.sh
+vim gateway_config.sh
 ```
 
 Make sure to set:
@@ -59,7 +109,9 @@ Make sure to set:
 - VPN credentials
 - Remote desktop credentials
 
-### 3. Make Scripts Executable
+The scripts will not work correctly without these modifications!
+
+### 7. Make Scripts Executable
 
 Make all scripts executable:
 
@@ -67,27 +119,7 @@ Make all scripts executable:
 chmod +x *.sh
 ```
 
-### 4. Run the Server Setup
-
-Run the server setup script from the root of the cloned repository:
-
-```sh
-sudo ./setup_server.sh
-```
-
-This installs all required packages, configures VNC, Remmina, and firewall.
-
-### 5. Connect to the VNC Server
-
-For the remaining steps, you should connect to the VNC server that was just set up. Use your VNC client to connect to the server:
-
-```
-[Server IP]:5901
-```
-
-Use the VNC password you configured in `gateway-config.sh`.
-
-### 6. Set Up the VPN Client
+### 8. Set Up the VPN Client
 
 Run the VPN setup script from the root of the cloned repository:
 
@@ -98,7 +130,7 @@ sudo ./setup_vpn.sh
 
 This configures L2TP/IPsec VPN, policy routing, and firewall rules.
 
-### 7. Create and Launch Remmina Profile
+### 9. Create and Launch Remmina Profile
 
 Run the Remmina setup script from the root of the cloned repository:
 
@@ -109,7 +141,7 @@ cd ~/secure-remote-desktop-gateway  # Make sure you're in the repository root
 
 This creates a Remmina RDP profile and launches Remmina.
 
-### 8. Troubleshoot (If Needed)
+### 10. Troubleshoot (If Needed)
 
 If you have issues connecting with Remmina, run:
 
@@ -125,13 +157,13 @@ cd ~/secure-remote-desktop-gateway  # Make sure you're in the repository root
 - **Firewall**: The scripts configure UFW and remind you to set up cloud provider firewall rules.
 - **Persistence**: Routing and firewall rules are made persistent across reboots.
 - **Security**: Change all default passwords after setup.
-- **VNC**: Connect to the server's IP on port 5901 using the credentials set in [`gateway-config.sh`](gateway-config.sh).
+- **VNC**: Connect to the server's IP on port 5901 using the credentials set in [`gateway_config.sh`](gateway_config.sh).
 
 ---
 
 ## File Overview
 
-- [`gateway-config.sh`](gateway-config.sh): All configuration variables.
+- [`gateway_config.sh`](gateway_config.sh): All configuration variables.
 - [`setup_server.sh`](setup_server.sh): Installs and configures VNC, Remmina, firewall.
 - [`setup_vpn.sh`](setup_vpn.sh): Sets up L2TP/IPsec VPN client and policy routing.
 - [`setup_remmina.sh`](setup_remmina.sh): Creates Remmina RDP profile.

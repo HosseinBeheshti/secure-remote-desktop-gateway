@@ -14,7 +14,7 @@ print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Source configuration file
-CONFIG_FILE="./gateway-config.sh"
+CONFIG_FILE="./gateway_config.sh"
 if [[ -f "$CONFIG_FILE" ]]; then
     source "$CONFIG_FILE"
     print_message "Configuration loaded from $CONFIG_FILE"
