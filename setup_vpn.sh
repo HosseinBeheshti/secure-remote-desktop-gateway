@@ -52,7 +52,7 @@ conn %default
   ike=aes128-sha256-modp1024,aes256-sha256-modp1024,aes128-sha1-modp1024,aes256-sha1-modp1024,3des-sha1-modp1024!
   esp=aes128-sha256,aes256-sha256-modp1024,aes128-sha1,aes256-sha1,3des-sha1!
 
-conn calnex
+conn l2tpvpn
   keyexchange=ikev1
   left=%defaultroute
   auto=start
@@ -81,7 +81,7 @@ sudo bash -c "cat > /etc/xl2tpd/xl2tpd.conf <<EOF
 port = 1701
 auth file = /etc/xl2tpd/xl2tp-secrets
 
-[lac calnex]
+[lac l2tpvpn]
 lns = ${VPN_SERVER_PUBLIC_IP}
 ppp debug = yes
 pppoptfile = /etc/ppp/options.l2tpd.client
@@ -195,8 +195,8 @@ sudo systemctl restart xl2tpd
 # --- Phase 3: Establish VPN & Configure Policy Routing ---
 
 print_message "Initiating VPN Tunnel..."
-sudo ipsec up calnex
-echo "c calnex" | sudo tee /var/run/xl2tpd/l2tp-control
+sudo ipsec up l2tpvpn
+echo "c l2tpvpn" | sudo tee /var/run/xl2tpd/l2tp-control
 
 print_message "Adding iptables mark rule for Remmina traffic (to ${REMOTE_PC_IP})..."
 sudo iptables -t mangle -A OUTPUT -d "${REMOTE_PC_IP}/32" -j MARK --set-mark 1

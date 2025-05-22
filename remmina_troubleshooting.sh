@@ -38,7 +38,7 @@ fi
 print_message "1. Checking VPN status..."
 if ! ip addr show | grep -q ppp0; then
     print_error "VPN interface ppp0 not found. VPN might be disconnected."
-    print_message "Try: sudo ipsec restart && echo 'c calnex' | sudo tee /var/run/xl2tpd/l2tp-control"
+    print_message "Try: sudo ipsec restart && echo 'c l2tpvpn' | sudo tee /var/run/xl2tpd/l2tp-control"
     exit 1
 else
     print_message "VPN interface ppp0 exists."
