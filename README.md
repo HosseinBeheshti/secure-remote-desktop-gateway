@@ -61,7 +61,17 @@ This installs all required packages, configures VNC, Remmina, and firewall.
 sudo ./setup_server.sh
 ```
 
-### 5. Set Up the VPN Client
+### 5. Connect to the VNC Server
+
+For the remaining steps, you should connect to the VNC server that was just set up. Use your VNC client to connect to the server:
+
+```
+[Server IP]:5901
+```
+
+Use the VNC password you configured in `gateway-config.sh`.
+
+### 6. Set Up the VPN Client
 
 This configures L2TP/IPsec VPN, policy routing, and firewall rules.
 
@@ -69,7 +79,7 @@ This configures L2TP/IPsec VPN, policy routing, and firewall rules.
 sudo ./setup_vpn.sh
 ```
 
-### 6. Create and Launch Remmina Profile
+### 7. Create and Launch Remmina Profile
 
 This creates a Remmina RDP profile and launches Remmina.
 
@@ -77,7 +87,7 @@ This creates a Remmina RDP profile and launches Remmina.
 ./setup_remmina.sh
 ```
 
-### 7. Troubleshoot (If Needed)
+### 8. Troubleshoot (If Needed)
 
 If you have issues connecting with Remmina, run:
 
@@ -92,7 +102,7 @@ If you have issues connecting with Remmina, run:
 - **Firewall**: The scripts configure UFW and remind you to set up cloud provider firewall rules.
 - **Persistence**: Routing and firewall rules are made persistent across reboots.
 - **Security**: Change all default passwords after setup.
-- **VNC**: Connect to the server's IP on port 5901 using the credentials set in [`setup_server.sh`](setup_server.sh).
+- **VNC**: Connect to the server's IP on port 5901 using the credentials set in [`gateway-config.sh`](gateway-config.sh).
 
 ---
 
