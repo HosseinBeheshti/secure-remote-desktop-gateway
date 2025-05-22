@@ -45,21 +45,37 @@ cd secure-remote-desktop-gateway
 
 ### 2. Configure Your Environment
 
-Edit [`gateway-config.sh`](gateway-config.sh) and set all variables according to your environment (VPN server IP, credentials, remote PC IP, etc).
+Edit [`gateway-config.sh`](gateway-config.sh) and set all variables according to your environment:
+
+```sh
+nano gateway-config.sh
+```
+
+Make sure to set:
+- VPN server IP address
+- Server public IP address
+- Remote PC IP address 
+- Default gateway (get with `ip route | grep default | awk '{print $3}'`)
+- VPN credentials
+- Remote desktop credentials
 
 ### 3. Make Scripts Executable
 
+Make all scripts executable:
+
 ```sh
-chmod +x setup_server.sh setup_vpn.sh setup_remmina.sh remmina_troubleshooting.sh
+chmod +x *.sh
 ```
 
 ### 4. Run the Server Setup
 
-This installs all required packages, configures VNC, Remmina, and firewall.
+Run the server setup script from the root of the cloned repository:
 
 ```sh
 sudo ./setup_server.sh
 ```
+
+This installs all required packages, configures VNC, Remmina, and firewall.
 
 ### 5. Connect to the VNC Server
 
@@ -73,25 +89,32 @@ Use the VNC password you configured in `gateway-config.sh`.
 
 ### 6. Set Up the VPN Client
 
-This configures L2TP/IPsec VPN, policy routing, and firewall rules.
+Run the VPN setup script from the root of the cloned repository:
 
 ```sh
+cd ~/secure-remote-desktop-gateway  # Make sure you're in the repository root
 sudo ./setup_vpn.sh
 ```
 
+This configures L2TP/IPsec VPN, policy routing, and firewall rules.
+
 ### 7. Create and Launch Remmina Profile
 
-This creates a Remmina RDP profile and launches Remmina.
+Run the Remmina setup script from the root of the cloned repository:
 
 ```sh
+cd ~/secure-remote-desktop-gateway  # Make sure you're in the repository root
 ./setup_remmina.sh
 ```
+
+This creates a Remmina RDP profile and launches Remmina.
 
 ### 8. Troubleshoot (If Needed)
 
 If you have issues connecting with Remmina, run:
 
 ```sh
+cd ~/secure-remote-desktop-gateway  # Make sure you're in the repository root
 ./remmina_troubleshooting.sh
 ```
 
