@@ -48,7 +48,7 @@ cd secure-remote-desktop-gateway
 Edit [`gateway-config.sh`](gateway-config.sh) and set all variables according to your environment:
 
 ```sh
-nano gateway-config.sh
+vim gateway-config.sh
 ```
 
 Make sure to set:
