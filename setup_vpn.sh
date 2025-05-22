@@ -146,7 +146,6 @@ sudo ufw allow 22/tcp # Ensure SSH is allowed
 sudo ufw allow 500/udp
 sudo ufw allow 1701/udp
 sudo ufw allow 4500/udp
-sudo ufw allow esp # This handles IP Protocol 50
 
 # Check if netfilter-persistent is installed
 if ! command -v netfilter-persistent &> /dev/null; then
