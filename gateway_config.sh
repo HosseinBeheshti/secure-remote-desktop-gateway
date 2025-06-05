@@ -15,9 +15,3 @@ export VNC_RESOLUTION="1920x1080"
 export IPSEC_PSK="YOUR_IPSEC_PSK"
 export VPN_USERNAME="vpn_username"
 export VPN_PASSWORD="vpn_password"
-
-# Remote Desktop Settings
-export REMOTE_PC_NAME="Remote_PC"
-export RDP_USERNAME="rdp_username"
-export RDP_PASSWORD="rdp_password"
-export RDP_RESOLUTION="1920x1080"
