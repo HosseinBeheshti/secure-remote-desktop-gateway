@@ -1,5 +1,5 @@
 #!/bin/bash
-# Troubleshooting script for Remmina connection issues
+# Simplified Remmina VPN troubleshooting script
 
 # --- Colors ---
 GREEN='\033[0;32m'
@@ -21,96 +21,95 @@ else
     exit 1
 fi
 
-print_warning "⚠️ WARNING: This script modifies network routing."
-print_warning "There is a risk of disconnecting your current VNC session."
-print_warning "Make sure you have an alternative way to access this machine if VNC disconnects."
-read -p "Press ENTER to continue or CTRL+C to abort..."
-
-print_message "=== Remmina Connection Troubleshooting ==="
-
-# Save VNC server IP to prevent disconnection
-VNC_SERVER_IP=$(who | grep -oP '\(\K[0-9.]+(?=\))')
-if [[ -n "$VNC_SERVER_IP" ]]; then
-    print_message "Detected VNC connection from $VNC_SERVER_IP - will preserve this connection"
-fi
+print_message "=== Remmina VPN Route Check ==="
 
 # 1. Check VPN status
 print_message "1. Checking VPN status..."
 if ! ip addr show | grep -q ppp0; then
-    print_error "VPN interface ppp0 not found. VPN might be disconnected."
-    print_message "Try: sudo ipsec restart && echo 'c l2tpvpn' | sudo tee /var/run/xl2tpd/l2tp-control"
+    print_error "VPN interface ppp0 not found. VPN is disconnected."
+    print_message "To reconnect VPN, run:"
+    print_message "sudo ipsec restart && echo 'c l2tpvpn' | sudo tee /var/run/xl2tpd/l2tp-control"
     exit 1
 else
-    print_message "VPN interface ppp0 exists."
+    PPP_LOCAL_IP=$(ip addr show ppp0 | grep -oP 'inet \K[0-9.]+')
+    print_message "✓ VPN interface ppp0 is UP with IP: $PPP_LOCAL_IP"
 fi
 
 # 2. Check routing
 print_message "2. Checking routing tables..."
-print_message "Main routing table:"
-ip route
+print_message "Current routes:"
+ip route | grep -E "(default|ppp0|${REMOTE_PC_IP})" || print_warning "No VPN routes found"
 
-print_message "VPN routing table:"
-if ! sudo ip route show table vpn_remmina; then
-    print_warning "VPN routing table is empty or doesn't exist"
+# Check if target is reachable via VPN
+print_message "3. Testing connectivity to ${REMOTE_PC_IP}..."
+if ping -c 2 -W 3 ${REMOTE_PC_IP} >/dev/null 2>&1; then
+    print_message "✓ Target ${REMOTE_PC_IP} is reachable"
+else
+    print_warning "✗ Target ${REMOTE_PC_IP} is not reachable via current routing"
     
-    # Add specific route for the remote target
-    print_message "Adding direct route to remote PC..."
-    PPP_LOCAL_IP=$(ip addr show ppp0 | grep -oP 'inet \K[0-9.]+')
+    # Add direct route via VPN
+    print_message "Adding direct route via VPN..."
     PPP_GATEWAY=$(echo $PPP_LOCAL_IP | sed 's/\.[0-9]\+$/.1/')
-    sudo ip route add ${REMOTE_PC_IP}/32 via $PPP_GATEWAY dev ppp0
+    sudo ip route add ${REMOTE_PC_IP}/32 via $PPP_GATEWAY dev ppp0 2>/dev/null || true
     
-    # Try adding the routing rules again - ONLY for the specific remote PC
-    print_message "Adding targeted policy routing rules..."
-    sudo ip route add default via $PPP_GATEWAY dev ppp0 table vpn_remmina
-    
-    # Add rules ONLY for traffic to the remote PC, not all traffic
-    sudo ip rule add to ${REMOTE_PC_IP}/32 table vpn_remmina
-    
-    # Preserve VNC connection if detected
-    if [[ -n "$VNC_SERVER_IP" ]]; then
-        print_message "Adding exception for VNC traffic from $VNC_SERVER_IP"
-        sudo ip rule add from $VNC_SERVER_IP lookup main pref 10
+    # Test again
+    if ping -c 2 -W 3 ${REMOTE_PC_IP} >/dev/null 2>&1; then
+        print_message "✓ Target is now reachable after adding route"
+    else
+        print_error "✗ Target still not reachable"
     fi
-    
-    sudo ip route flush cache
 fi
 
-# 3. Check IP rules
-print_message "3. Checking IP rules..."
-sudo ip rule list
+# 4. Test RDP port
+print_message "4. Testing RDP port 3389..."
+if nc -zv ${REMOTE_PC_IP} 3389 2>/dev/null; then
+    print_message "✓ RDP port 3389 is open on ${REMOTE_PC_IP}"
+else
+    print_warning "✗ RDP port 3389 is not accessible"
+fi
 
-# 4. Check firewall rules
-print_message "4. Checking firewall rules..."
-sudo iptables -L OUTPUT -v
-sudo iptables -t mangle -L OUTPUT -v
+# 5. Test Remmina connection
+print_message "5. Testing Remmina connection..."
+print_message "Attempting to connect to ${REMOTE_PC_IP} via RDP..."
 
-# 5. Try direct route (for RDP target only, not all traffic)
-print_message "5. Adding direct route to ${REMOTE_PC_IP}..."
-PPP_LOCAL_IP=$(ip addr show ppp0 | grep -oP 'inet \K[0-9.]+')
-PPP_GATEWAY=$(echo $PPP_LOCAL_IP | sed 's/\.[0-9]\+$/.1/')
-sudo ip route add ${REMOTE_PC_IP}/32 via $PPP_GATEWAY dev ppp0 || true
+# Create temporary Remmina connection
+TEMP_PROFILE="/tmp/remmina_test_$(date +%s).remmina"
+cat > "$TEMP_PROFILE" << EOF
+[remmina]
+password=
+name=Test Connection
+protocol=RDP
+server=${REMOTE_PC_IP}:3389
+username=${REMOTE_USERNAME}
+domain=${REMOTE_DOMAIN}
+resolution_mode=1
+color_depth=32
+sound=off
+EOF
 
-# 6. Check connectivity
-print_message "6. Testing connectivity to ${REMOTE_PC_IP}..."
-echo "Ping test (might fail if ICMP is blocked):"
-ping -c 4 ${REMOTE_PC_IP}
+# Launch Remmina with temporary profile
+print_message "Launching Remmina with test profile..."
+remmina -c "$TEMP_PROFILE" &
+REMMINA_PID=$!
 
-echo "Traceroute test:"
-traceroute ${REMOTE_PC_IP}
+# Wait a moment and check if Remmina is still running
+sleep 3
+if kill -0 $REMMINA_PID 2>/dev/null; then
+    print_message "✓ Remmina launched successfully"
+    print_message "Check if connection is working in the Remmina window"
+else
+    print_error "✗ Remmina failed to launch or connect"
+fi
 
-echo "Port scan (checking if RDP port 3389 is open):"
-nc -zv ${REMOTE_PC_IP} 3389 || print_warning "RDP port 3389 is not reachable"
+# Cleanup
+rm -f "$TEMP_PROFILE"
 
-# 7. Add rules for destination IP only
-print_message "7. Adding specific rule for destination IP..."
-sudo ip rule add to ${REMOTE_PC_IP}/32 table vpn_remmina
-sudo ip route flush cache
+print_message "=== Check Complete ==="
+print_message "Current VPN route to target:"
+ip route get ${REMOTE_PC_IP} 2>/dev/null || print_warning "No route found"
 
-print_message "=== Troubleshooting complete ==="
-print_message "Try connecting with Remmina again."
-print_message "If still not working, inspect traffic with:"
-print_message "sudo tcpdump -i ppp0 host ${REMOTE_PC_IP} -nn"
-
-print_warning "If your VNC session disconnected, reconnect and run:"
-print_message "sudo ip rule del to ${REMOTE_PC_IP}/32 table vpn_remmina"
-print_message "sudo ip route flush cache"
+print_message "If connection fails, check:"
+print_message "1. VPN is connected: ip addr show ppp0"
+print_message "2. Target is reachable: ping ${REMOTE_PC_IP}"
+print_message "3. RDP port is open: nc -zv ${REMOTE_PC_IP} 3389"
+print_message "4. Credentials are correct in Remmina"
