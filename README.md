@@ -119,33 +119,29 @@ Make all scripts executable:
 chmod +x *.sh
 ```
 
-### 8. Set Up the VPN Client
+### 8. Set Up VPN and Remmina
 
-Run the VPN setup script from the root of the cloned repository:
+Run the combined VPN and Remmina setup script from the root of the cloned repository:
 
 ```sh
 sudo ./setup_vpn.sh
 ```
 
-This configures L2TP/IPsec VPN, policy routing, and firewall rules.
+This configures L2TP/IPsec VPN, policy routing, firewall rules, and Remmina without creating profiles.
 
-### 9. Create and Launch Remmina Profile
+### 9. Troubleshoot (If Needed)
 
-Run the Remmina setup script from the root of the cloned repository:
-
-```sh
-./setup_remmina.sh
-```
-
-This creates a Remmina RDP profile and launches Remmina.
-
-### 10. Troubleshoot (If Needed)
-
-If you have issues connecting with Remmina, run:
+If you have issues connecting with Remmina, run the simplified troubleshooting script:
 
 ```sh
-./remmina_troubleshooting.sh
+./troubleshooting.sh
 ```
+
+This script performs focused checks on:
+- VPN connection status (ppp0 interface)
+- IP routing to target PC
+- RDP port connectivity
+- Remmina connection test without requiring existing profiles
 
 ---
 
@@ -155,6 +151,7 @@ If you have issues connecting with Remmina, run:
 - **Persistence**: Routing and firewall rules are made persistent across reboots.
 - **Security**: Change all default passwords after setup.
 - **VNC**: Connect to the server's IP on port 5901 using the credentials set in [`gateway_config.sh`](gateway_config.sh).
+- **Remmina**: No profiles are created - use manual connection or the troubleshooting script for testing.
 
 ---
 
@@ -162,15 +159,17 @@ If you have issues connecting with Remmina, run:
 
 - [`gateway_config.sh`](gateway_config.sh): All configuration variables.
 - [`setup_server.sh`](setup_server.sh): Installs and configures VNC, Remmina, firewall.
-- [`setup_vpn.sh`](setup_vpn.sh): Sets up L2TP/IPsec VPN client and policy routing.
-- [`setup_remmina.sh`](setup_remmina.sh): Creates Remmina RDP profile.
-- [`remmina_troubleshooting.sh`](remmina_troubleshooting.sh): Troubleshooting script for Remmina/VPN issues.
+- [`setup_vpn.sh`](setup_vpn.sh): Sets up L2TP/IPsec VPN client, policy routing, and Remmina.
+- [`troubleshooting.sh`](troubleshooting.sh): Simplified VPN route and Remmina connectivity checker.
 
 ---
 
 ## Troubleshooting
 
-- Check VPN status: `sudo ipsec statusall`
+- Check VPN status: `sudo ipsec statusall` or `ip addr show ppp0`
+- Check VPN routing: `ip route | grep ppp0`
+- Test target connectivity: `ping <REMOTE_PC_IP>`
+- Test RDP port: `nc -zv <REMOTE_PC_IP> 3389`
 - Check VNC logs: `cat /home/vncuser/.vnc/*.log`
 - Check Remmina logs: See Remmina GUI or run from terminal for output.
 - Inspect traffic: `sudo tcpdump -i any -nn -v host <REMOTE_PC_IP>`
