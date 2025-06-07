@@ -44,7 +44,7 @@ apt install -y xfce4 xfce4-goodies
 
 # Install VNC server and dependencies
 print_message "Installing TightVNC server and dependencies..."
-apt install -y tightvncserver xfonts-base dbus-x11
+apt install -y tightvncserver xfonts-base dbus-x11 autocutsel
 
 # Install additional useful packages
 print_message "Installing additional packages..."
