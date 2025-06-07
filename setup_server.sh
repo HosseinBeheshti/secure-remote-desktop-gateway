@@ -20,6 +20,7 @@ print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # Source configuration from gateway_config.sh
 if [ -f "gateway_config.sh" ]; then
     source gateway_config.sh
+    print_message "Configuration loaded from gateway_config.sh"
 else
     print_error "Configuration file gateway_config.sh not found!"
     exit 1
@@ -126,6 +127,11 @@ if systemctl is-active --quiet vncserver@1.service; then
 else
     print_warning "VNC service may have issues. Checking status..."
     systemctl status vncserver@1.service --no-pager || true
+    print_warning "Checking logs..."
+    journalctl -u vncserver@1.service --no-pager | tail -10
+    print_warning "Checking VNC log files..."
+    ls -la /home/$VNC_USER/.vnc/ || true
+    cat /home/$VNC_USER/.vnc/*.log 2>/dev/null || print_warning "No VNC log files found"
 fi
 
 # Configure firewall
