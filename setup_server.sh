@@ -44,11 +44,11 @@ apt install -y xfce4 xfce4-goodies
 
 # Install VNC server and dependencies
 print_message "Installing TightVNC server and dependencies..."
-apt install -y tightvncserver xfonts-base dbus-x11 autocutsel
+apt install -y tightvncserver xfonts-base dbus-x11
 
 # Install additional useful packages
 print_message "Installing additional packages..."
-apt install -y firefox nano wget curl
+apt install -y firefox vim wget curl
 
 # Create VNC user if doesn't exist
 print_message "Setting up VNC user '$VNC_USER'..."
