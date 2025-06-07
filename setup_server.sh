@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# VNC Server Setup Script for Ubuntu 24.04
+# This script sets up a complete VNC server with XFCE desktop
+
 # Exit on any error
 set -e
 
@@ -13,109 +16,85 @@ print_message() { echo -e "${GREEN}[INFO]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Source configuration file
-CONFIG_FILE="./gateway_config.sh"
-if [[ -f "$CONFIG_FILE" ]]; then
-    source "$CONFIG_FILE"
-    print_message "Configuration loaded from $CONFIG_FILE"
+# --- Configuration ---
+# Source configuration from gateway_config.sh
+if [ -f "gateway_config.sh" ]; then
+    source gateway_config.sh
+    print_message "Configuration loaded from gateway_config.sh"
 else
-    print_error "Configuration file not found: $CONFIG_FILE"
+    print_error "Configuration file gateway_config.sh not found!"
     exit 1
 fi
 
-print_message "Setting up VNC on Ubuntu 24.04..."
+print_message "Setting up VNC Server on Ubuntu 24.04..."
+
+# Check if running as root
+if [[ $EUID -ne 0 ]]; then
+   print_error "This script must be run as root (use sudo)"
+   exit 1
+fi
 
 # Update system
 print_message "Updating package lists..."
 apt update
 
-# Install required packages
-print_message "Installing required packages..."
-sudo apt install strongswan xl2tpd network-manager-l2tp iptables-persistent -y
+# Install desktop environment (XFCE) - lightweight and stable
+print_message "Installing XFCE desktop environment..."
+apt install -y xfce4 xfce4-goodies
 
-# Install netfilter-persistent for persistent iptables rules
-print_message "Installing netfilter-persistent..."
-apt install -y netfilter-persistent
+# Install VNC server and dependencies
+print_message "Installing TightVNC server and dependencies..."
+apt install -y tightvncserver xfonts-base dbus-x11
 
-# Install desktop environment (XFCE) and D-Bus
-print_message "Installing XFCE desktop environment and dependencies..."
-apt install -y xfce4 xfce4-goodies dbus-x11 dbus
+# Install additional useful packages
+print_message "Installing additional packages..."
+apt install -y firefox nano wget curl
 
-# Install TigerVNC server
-print_message "Installing TigerVNC server..."
-apt install -y tigervnc-standalone-server
-
-# Install Remmina
-print_message "Installing Remmina with RDP support..."
-apt install -y remmina remmina-plugin-rdp remmina-plugin-vnc freerdp2-x11 libfreerdp-client2-2
-
-# Setup user if not existing
-print_message "Setting up user '$VNC_USER'..."
+# Create VNC user if doesn't exist
+print_message "Setting up VNC user '$VNC_USER'..."
 if ! id "$VNC_USER" &>/dev/null; then
     useradd -m -s /bin/bash "$VNC_USER"
-    print_message "User '$VNC_USER' created."
+    print_message "User '$VNC_USER' created"
+else
+    print_message "User '$VNC_USER' already exists"
 fi
+
+# Set password for VNC user
 echo "$VNC_USER:$VNC_PASSWORD" | chpasswd
 usermod -aG sudo "$VNC_USER"
-print_message "User '$VNC_USER' configured with necessary group memberships."
 
-# Create D-Bus directory
-mkdir -p /home/$VNC_USER/.dbus
-chown -R $VNC_USER:$VNC_USER /home/$VNC_USER/.dbus
-
-# Create XDG runtime directory
-mkdir -p /run/user/$(id -u $VNC_USER)
-chmod 700 /run/user/$(id -u $VNC_USER)
-chown $VNC_USER:$VNC_USER /run/user/$(id -u $VNC_USER)
-
-# Switch to the VNC user for VNC configuration
-print_message "Setting up VNC server..."
-su - "$VNC_USER" <<EOF
+# Setup VNC for the user
+print_message "Configuring VNC server..."
+sudo -u "$VNC_USER" bash << EOF
 # Create VNC directory
-mkdir -p ~/.vnc
+mkdir -p /home/$VNC_USER/.vnc
 
 # Set VNC password
-echo "$VNC_PASSWORD" | vncpasswd -f > ~/.vnc/passwd
-chmod 600 ~/.vnc/passwd
+echo "$VNC_PASSWORD" | vncpasswd -f > /home/$VNC_USER/.vnc/passwd
+chmod 600 /home/$VNC_USER/.vnc/passwd
 
-# Create xstartup file with D-Bus initialization
-cat > ~/.vnc/xstartup << 'XSTART'
+# Create xstartup file
+cat > /home/$VNC_USER/.vnc/xstartup << 'XSTART'
 #!/bin/bash
-# Fix D-Bus issues
-export XDG_SESSION_TYPE=x11
-export XDG_RUNTIME_DIR=/run/user/$(id -u)
-mkdir -p \$XDG_RUNTIME_DIR
-chmod 700 \$XDG_RUNTIME_DIR
-
-# Start D-Bus daemon
-if [ -x /usr/bin/dbus-launch ]; then
-    eval \$(dbus-launch --sh-syntax)
-    echo \$DBUS_SESSION_BUS_ADDRESS > ~/.dbus/session-bus-address
-fi
-
-# Unset problematic variables
-unset SESSION_MANAGER
-# We keep DBUS_SESSION_BUS_ADDRESS as we need it
-
-# Start window manager
-xrdb \$HOME/.Xresources 2>/dev/null || true
-xsetroot -solid grey
-exec startxfce4
+xrdb \$HOME/.Xresources
+startxfce4 &
 XSTART
-chmod +x ~/.vnc/xstartup
 
-# First time setup of the VNC server
-vncserver -localhost no
+chmod +x /home/$VNC_USER/.vnc/xstartup
 
-# Kill the server to update configuration
-vncserver -kill :1
+# Start VNC server once to create initial configuration
+export USER="$VNC_USER"
+export HOME="/home/$VNC_USER"
+cd /home/$VNC_USER
+tightvncserver :1 -geometry $VNC_RESOLUTION -depth 24
+tightvncserver -kill :1
 EOF
 
-# Create systemd service file with D-Bus environment setup
-print_message "Creating systemd service for VNC..."
+# Create systemd service file
+print_message "Creating systemd service..."
 cat > /etc/systemd/system/vncserver@.service << EOF
 [Unit]
-Description=Start TigerVNC server at startup
+Description=Start TightVNC server at startup
 After=syslog.target network.target
 
 [Service]
@@ -124,20 +103,10 @@ User=$VNC_USER
 Group=$VNC_USER
 WorkingDirectory=/home/$VNC_USER
 
-# Environment setup for D-Bus
-Environment="XDG_RUNTIME_DIR=/run/user/$(id -u $VNC_USER)"
-Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u $VNC_USER)/bus"
-
 PIDFile=/home/$VNC_USER/.vnc/%H:%i.pid
-ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
-ExecStartPre=-/bin/mkdir -p /run/user/$(id -u $VNC_USER)
-ExecStartPre=-/bin/chmod 700 /run/user/$(id -u $VNC_USER)
-ExecStartPre=-/bin/chown $VNC_USER:$VNC_USER /run/user/$(id -u $VNC_USER)
-ExecStart=/usr/bin/vncserver -depth 24 -geometry $VNC_RESOLUTION -localhost no :%i
-ExecStop=/usr/bin/vncserver -kill :%i
-
-Restart=on-failure
-RestartSec=10
+ExecStartPre=-/bin/sh -c '/usr/bin/tightvncserver -kill :%i > /dev/null 2>&1 || :'
+ExecStart=/usr/bin/tightvncserver -depth 24 -geometry $VNC_RESOLUTION :%i
+ExecStop=/usr/bin/tightvncserver -kill :%i
 
 [Install]
 WantedBy=multi-user.target
@@ -149,31 +118,101 @@ systemctl daemon-reload
 systemctl enable vncserver@1.service
 systemctl start vncserver@1.service
 
+# Wait a moment for service to start
+sleep 3
+
+# Check service status
+if systemctl is-active --quiet vncserver@1.service; then
+    print_message "VNC service started successfully!"
+else
+    print_warning "VNC service may have issues. Checking status..."
+    systemctl status vncserver@1.service --no-pager || true
+    print_warning "Checking logs..."
+    journalctl -u vncserver@1.service --no-pager | tail -10
+    print_warning "Checking VNC log files..."
+    ls -la /home/$VNC_USER/.vnc/ || true
+    cat /home/$VNC_USER/.vnc/*.log 2>/dev/null || print_warning "No VNC log files found"
+fi
+
 # Configure firewall
 print_message "Configuring firewall..."
-apt install -y ufw
-ufw allow 5901/tcp comment "VNC Server"
-ufw allow 22/tcp comment "SSH"
-ufw --force enable
+if command -v ufw &> /dev/null; then
+    ufw allow $VNC_PORT/tcp comment "VNC Server"
+    ufw allow 22/tcp comment "SSH"
+    ufw --force enable
+else
+    print_warning "UFW not found, please configure firewall manually"
+fi
 
-# Show connection information
-IP_ADDRESS=$(hostname -I | awk '{print $1}')
-print_message "VNC setup complete!"
+# Get server IP
+SERVER_IP=$(hostname -I | awk '{print $1}')
 
-echo "-----------------------------------------------------"
-echo "VNC Server Details:"
-echo "  User: $VNC_USER"
-echo "  Password: $VNC_PASSWORD (you should change this!)"
-echo "  Address: $IP_ADDRESS:5901"
+# Create connection script for user
+cat > /home/$VNC_USER/connect_info.txt << EOF
+VNC Server Connection Information
+================================
+
+Server IP: $SERVER_IP
+VNC Port: $VNC_PORT
+Full Address: $SERVER_IP:$VNC_PORT
+Username: $VNC_USER
+Password: $VNC_PASSWORD
+
+VNC Clients you can use:
+- RealVNC Viewer
+- TightVNC Viewer  
+- Remmina (Linux)
+- VNC Viewer (built into many systems)
+
+To connect:
+1. Open your VNC client
+2. Enter: $SERVER_IP:$VNC_PORT (or $SERVER_IP:1)
+3. Enter password when prompted: $VNC_PASSWORD
+
+Useful Commands:
+- Check VNC status: sudo systemctl status vncserver@1.service
+- Restart VNC: sudo systemctl restart vncserver@1.service
+- Stop VNC: sudo systemctl stop vncserver@1.service
+- Start VNC: sudo systemctl start vncserver@1.service
+- View VNC logs: ls -la ~/.vnc/ && cat ~/.vnc/*.log
+EOF
+
+chown $VNC_USER:$VNC_USER /home/$VNC_USER/connect_info.txt
+
+# Display final information
+print_message "VNC Server setup completed successfully!"
 echo ""
-echo "Connect using a VNC viewer like RealVNC, TigerVNC, or Remmina to:"
-echo "  $IP_ADDRESS:5901"
+echo "=================================================="
+echo "           VNC SERVER SETUP COMPLETE"
+echo "=================================================="
 echo ""
-echo "-----------------------------------------------------"
-echo "To check VNC service status: systemctl status vncserver@1.service"
-echo "To restart VNC service: systemctl restart vncserver@1.service"
-echo "To check VNC logs: cat /home/$VNC_USER/.vnc/*.log"
-echo "If you encounter D-Bus issues, run: sudo systemctl restart vncserver@1.service"
-echo "-----------------------------------------------------"
+echo "🖥️  Server Details:"
+echo "   IP Address: $SERVER_IP"
+echo "   VNC Port: $VNC_PORT"
+echo "   Full Address: $SERVER_IP:$VNC_PORT"
+echo ""
+echo "👤 User Credentials:"
+echo "   Username: $VNC_USER"
+echo "   Password: $VNC_PASSWORD"
+echo ""
+echo "🔧 Service Management:"
+echo "   Status: sudo systemctl status vncserver@1.service"
+echo "   Restart: sudo systemctl restart vncserver@1.service"
+echo "   Logs: sudo journalctl -u vncserver@1.service"
+echo ""
+echo "📋 Connection info saved to: /home/$VNC_USER/connect_info.txt"
+echo ""
+echo "🚀 Ready to connect with any VNC client!"
+echo "=================================================="
+
+# Final service status check
+print_message "Final service status check..."
+if systemctl is-active --quiet vncserver@1.service; then
+    echo "✅ VNC service is running"
+else
+    echo "❌ VNC service is not running - check logs with:"
+    echo "   sudo systemctl status vncserver@1.service"
+    echo "   sudo journalctl -u vncserver@1.service"
+fi
 
 exit 0
