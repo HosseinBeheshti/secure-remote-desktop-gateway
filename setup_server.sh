@@ -152,7 +152,7 @@ systemctl start vncserver@1.service
 # Configure firewall
 print_message "Configuring firewall..."
 apt install -y ufw
-ufw allow 5901/tcp comment "VNC Server"
+ufw allow ${VNC_PORT}/tcp comment "VNC Server"
 ufw allow 22/tcp comment "SSH"
 ufw --force enable
 
@@ -164,10 +164,10 @@ echo "-----------------------------------------------------"
 echo "VNC Server Details:"
 echo "  User: $VNC_USER"
 echo "  Password: $VNC_PASSWORD (you should change this!)"
-echo "  Address: $IP_ADDRESS:5901"
+echo "  Address: $IP_ADDRESS:$VNC_PORT"
 echo ""
 echo "Connect using a VNC viewer like RealVNC, TigerVNC, or Remmina to:"
-echo "  $IP_ADDRESS:5901"
+echo "  $IP_ADDRESS:$VNC_PORT"
 echo ""
 echo "-----------------------------------------------------"
 echo "To check VNC service status: systemctl status vncserver@1.service"

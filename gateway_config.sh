@@ -8,6 +8,7 @@ export REMOTE_PC_IP="YOUR_REMOTE_PC_IP"  # IP of the remote PC
 
 # VNC Server Settings
 export VNC_USER="vncuser"
+export VNC_PORT="5901"
 export VNC_PASSWORD="change_this_password"
 export VNC_RESOLUTION="1920x1080"
 
