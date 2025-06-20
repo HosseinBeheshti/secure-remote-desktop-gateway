@@ -191,12 +191,6 @@ echo "Debugging Commands:"
 echo "  Check if VNC is listening: netstat -tlnp | grep $VNC_PORT"
 echo "  List VNC sessions: vncserver -list"
 echo "  Manual start as user: su - $VNC_USER -c 'vncserver -localhost no -rfbport $VNC_PORT :1'"
-echo ""
-echo "Current VNC sessions:"
-vncserver -list || echo "  No sessions found or vncserver command failed"
-echo ""
-echo "Checking if port $VNC_PORT is listening:"
-netstat -tlnp | grep $VNC_PORT || echo "  Port $VNC_PORT is not listening"
 echo "-----------------------------------------------------"
 
 exit 0
