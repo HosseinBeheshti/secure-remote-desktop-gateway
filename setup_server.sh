@@ -23,6 +23,7 @@ else
     exit 1
 fi
 
+print_message "Using VNC port: $VNC_PORT"
 print_message "Setting up VNC on Ubuntu 24.04..."
 
 # Update system
@@ -83,7 +84,7 @@ cat > ~/.vnc/xstartup << 'XSTART'
 #!/bin/bash
 # Fix D-Bus issues
 export XDG_SESSION_TYPE=x11
-export XDG_RUNTIME_DIR=/run/user/$(id -u)
+export XDG_RUNTIME_DIR=/run/user/\$(id -u)
 mkdir -p \$XDG_RUNTIME_DIR
 chmod 700 \$XDG_RUNTIME_DIR
 
@@ -104,8 +105,8 @@ exec startxfce4
 XSTART
 chmod +x ~/.vnc/xstartup
 
-# First time setup of the VNC server
-vncserver -localhost no
+# First time setup of the VNC server with custom port
+vncserver -localhost no -rfbport $VNC_PORT :1
 
 # Kill the server to update configuration
 vncserver -kill :1
@@ -149,6 +150,17 @@ systemctl daemon-reload
 systemctl enable vncserver@1.service
 systemctl start vncserver@1.service
 
+# Wait a moment for service to start
+sleep 3
+
+# Check if VNC service started successfully
+if systemctl is-active --quiet vncserver@1.service; then
+    print_message "VNC service started successfully"
+else
+    print_warning "VNC service may have failed to start. Checking status..."
+    systemctl status vncserver@1.service || true
+fi
+
 # Configure firewall
 print_message "Configuring firewall..."
 apt install -y ufw
@@ -170,10 +182,21 @@ echo "Connect using a VNC viewer like RealVNC, TigerVNC, or Remmina to:"
 echo "  $IP_ADDRESS:$VNC_PORT"
 echo ""
 echo "-----------------------------------------------------"
-echo "To check VNC service status: systemctl status vncserver@1.service"
-echo "To restart VNC service: systemctl restart vncserver@1.service"
-echo "To check VNC logs: cat /home/$VNC_USER/.vnc/*.log"
-echo "If you encounter D-Bus issues, run: sudo systemctl restart vncserver@1.service"
+echo "Service Management:"
+echo "  Check VNC service status: systemctl status vncserver@1.service"
+echo "  Restart VNC service: systemctl restart vncserver@1.service"
+echo "  Check VNC logs: cat /home/$VNC_USER/.vnc/*.log"
+echo ""
+echo "Debugging Commands:"
+echo "  Check if VNC is listening: netstat -tlnp | grep $VNC_PORT"
+echo "  List VNC sessions: vncserver -list"
+echo "  Manual start as user: su - $VNC_USER -c 'vncserver -localhost no -rfbport $VNC_PORT :1'"
+echo ""
+echo "Current VNC sessions:"
+vncserver -list || echo "  No sessions found or vncserver command failed"
+echo ""
+echo "Checking if port $VNC_PORT is listening:"
+netstat -tlnp | grep $VNC_PORT || echo "  Port $VNC_PORT is not listening"
 echo "-----------------------------------------------------"
 
 exit 0
