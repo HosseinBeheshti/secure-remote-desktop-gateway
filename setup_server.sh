@@ -133,7 +133,7 @@ ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
 ExecStartPre=-/bin/mkdir -p /run/user/$(id -u $VNC_USER)
 ExecStartPre=-/bin/chmod 700 /run/user/$(id -u $VNC_USER)
 ExecStartPre=-/bin/chown $VNC_USER:$VNC_USER /run/user/$(id -u $VNC_USER)
-ExecStart=/usr/bin/vncserver -depth 24 -geometry $VNC_RESOLUTION -localhost no :%i
+ExecStart=/usr/bin/vncserver -depth 24 -geometry $VNC_RESOLUTION -localhost no -rfbport $VNC_PORT :1
 ExecStop=/usr/bin/vncserver -kill :%i
 
 Restart=on-failure
