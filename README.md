@@ -78,7 +78,7 @@ This installs all required packages, configures VNC, Remmina, and firewall.
 For the remaining steps, you should connect to the VNC server that was just set up. Use your VNC client to connect to the server:
 
 ```
-[Server IP]:5901
+[Server IP]:[Server Port]
 ```
 
 Use the VNC password you configured in `gateway_config.sh`.
