@@ -12,6 +12,18 @@ export VNC_PORT="5901"
 export VNC_PASSWORD="change_this_password"
 export VNC_RESOLUTION="1920x1080"
 
+# Define VNC users and their configurations
+VNC_USER1="vncuser1"
+VNC_PASSWORD1="vnc123456"
+VNC_PORT1="5901"
+VNC_DISPLAY1="1"
+
+VNC_USER2="vncuser2"
+VNC_PASSWORD2="vnc789012"
+VNC_PORT2="5902"
+VNC_DISPLAY2="2"
+
+
 # VPN Authentication
 export IPSEC_PSK="YOUR_IPSEC_PSK"
 export VPN_USERNAME="vpn_username"

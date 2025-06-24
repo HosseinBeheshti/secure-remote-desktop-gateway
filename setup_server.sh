@@ -50,6 +50,13 @@ apt install -y tigervnc-standalone-server
 print_message "Installing Remmina with RDP support..."
 apt install -y remmina remmina-plugin-rdp remmina-plugin-vnc freerdp2-x11 libfreerdp-client2-2
 
+# Install Google Chrome
+print_message "Installing Google Chrome..."
+wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+apt update
+apt install -y google-chrome-stable
+
 # Setup user if not existing
 print_message "Setting up user '$VNC_USER'..."
 if ! id "$VNC_USER" &>/dev/null; then
@@ -111,6 +118,66 @@ vncserver -localhost no -rfbport $VNC_PORT :1
 # Kill the server to update configuration
 vncserver -kill :1
 EOF
+
+# Setup second VNC user
+print_message "Setting up VNC user '$VNC_USER2'..."
+if ! id "$VNC_USER2" &>/dev/null; then
+    useradd -m -s /bin/bash "$VNC_USER2"
+    print_message "User '$VNC_USER2' created"
+else
+    print_message "User '$VNC_USER2' already exists"
+fi
+
+echo "$VNC_USER2:$VNC_PASSWORD2" | chpasswd
+usermod -aG sudo "$VNC_USER2"
+
+sudo -u "$VNC_USER2" bash << EOF
+mkdir -p /home/$VNC_USER2/.vnc
+echo "$VNC_PASSWORD2" | vncpasswd -f > /home/$VNC_USER2/.vnc/passwd
+chmod 600 /home/$VNC_USER2/.vnc/passwd
+
+cat > /home/$VNC_USER2/.vnc/xstartup << 'XSTART'
+#!/bin/bash
+xrdb \$HOME/.Xresources
+startxfce4 &
+XSTART
+
+chmod +x /home/$VNC_USER2/.vnc/xstartup
+
+export USER="$VNC_USER2"
+export HOME="/home/$VNC_USER2"
+cd /home/$VNC_USER2
+tightvncserver :$VNC_DISPLAY2 -geometry $VNC_RESOLUTION -depth 24
+tightvncserver -kill :$VNC_DISPLAY2
+EOF
+
+# Create systemd service for second user
+cat > /etc/systemd/system/vncserver-$VNC_USER2@.service << EOF
+[Unit]
+Description=Start TightVNC server for $VNC_USER2 at startup
+After=syslog.target network.target
+
+[Service]
+Type=forking
+User=$VNC_USER2
+Group=$VNC_USER2
+WorkingDirectory=/home/$VNC_USER2
+
+PIDFile=/home/$VNC_USER2/.vnc/%H:%i.pid
+ExecStartPre=-/bin/sh -c '/usr/bin/tightvncserver -kill :%i > /dev/null 2>&1 || :'
+ExecStart=/usr/bin/tightvncserver -depth 24 -geometry $VNC_RESOLUTION :%i
+ExecStop=/usr/bin/tightvncserver -kill :%i
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable vncserver-$VNC_USER2@$VNC_DISPLAY2.service
+systemctl start vncserver-$VNC_USER2@$VNC_DISPLAY2.service
+
+# Add firewall rule for second user
+ufw allow $VNC_PORT2/tcp comment "VNC Server User2"
 
 # Create systemd service file with D-Bus environment setup
 print_message "Creating systemd service for VNC..."
