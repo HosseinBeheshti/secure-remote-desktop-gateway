@@ -9,11 +9,111 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# --- Helper Functions ---
 print_message() { echo -e "${GREEN}[INFO]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Source configuration file
+# --- VNC User Setup Function ---
+setup_vnc_user() {
+    local USERNAME=$1
+    local PASSWORD=$2
+    local DISPLAY_NUM=$3
+    local RESOLUTION=$4
+    local PORT=$5
+
+    print_message "--- Setting up VNC for user '$USERNAME' on port $PORT (display :$DISPLAY_NUM) ---"
+
+    # 1. Create user if not exists
+    if ! id "$USERNAME" &>/dev/null; then
+        useradd -m -s /bin/bash "$USERNAME"
+        print_message "User '$USERNAME' created."
+    fi
+    echo "$USERNAME:$PASSWORD" | chpasswd
+    usermod -aG sudo "$USERNAME"
+    print_message "User '$USERNAME' configured with password and sudo privileges."
+
+    # 2. Configure VNC for the user
+    su - "$USERNAME" <<EOF
+mkdir -p /home/$USERNAME/.vnc
+echo "$PASSWORD" | vncpasswd -f > /home/$USERNAME/.vnc/passwd
+chmod 600 /home/$USERNAME/.vnc/passwd
+
+cat > /home/$USERNAME/.vnc/xstartup << 'XSTART'
+#!/bin/sh
+# This script is executed by the VNC server when a desktop session starts.
+# It launches the XFCE desktop environment.
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+[ -r \$HOME/.Xresources ] && xrdb \$HOME/.Xresources
+exec startxfce4
+XSTART
+
+chmod +x /home/$USERNAME/.vnc/xstartup
+
+# --- VNC Initialization ---
+# Forcefully kill any existing VNC server for this display to ensure a clean state.
+vncserver -kill :$DISPLAY_NUM >/dev/null 2>&1 || true
+sleep 1
+
+# Initialize the VNC server once to create necessary files.
+vncserver -rfbport $PORT :$DISPLAY_NUM
+
+# Wait a moment for the server to create its PID file before killing it.
+sleep 2
+
+# Kill the temporary server. The systemd service will manage the permanent one.
+vncserver -kill :$DISPLAY_NUM >/dev/null 2>&1 || true
+EOF
+    print_message "VNC configured for user '$USERNAME'."
+
+    # 3. Create systemd service file for the user
+    print_message "Creating systemd service for '$USERNAME'..."
+    cat > /etc/systemd/system/vncserver-$USERNAME@.service << EOF
+[Unit]
+Description=TigerVNC server for user $USERNAME
+After=syslog.target network.target
+
+[Service]
+Type=forking
+User=$USERNAME
+Group=$USERNAME
+WorkingDirectory=/home/$USERNAME
+
+PIDFile=/home/$USERNAME/.vnc/%H:%i.pid
+ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
+ExecStart=/usr/bin/vncserver -depth 24 -geometry $RESOLUTION -localhost no -rfbport $PORT :%i
+ExecStop=/usr/bin/vncserver -kill :%i
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # 4. Enable and start the service
+    systemctl daemon-reload
+    systemctl enable vncserver-$USERNAME@$DISPLAY_NUM.service
+    systemctl restart vncserver-$USERNAME@$DISPLAY_NUM.service
+    print_message "VNC service for '$USERNAME' enabled and started."
+
+    # Add a check to see if the service is active
+    sleep 3 # Give the service a moment to stabilize
+    if ! systemctl is-active --quiet vncserver-$USERNAME@$DISPLAY_NUM.service; then
+        print_error "VNC service for '$USERNAME' failed to start. Please check the logs with:"
+        echo "journalctl -xeu vncserver-$USERNAME@$DISPLAY_NUM.service"
+        exit 1
+    fi
+
+    # 5. Configure firewall
+    ufw allow "$PORT/tcp" comment "VNC for $USERNAME"
+    print_message "Firewall rule added for port $PORT."
+}
+
+# --- Main Script ---
+
+# 1. Source configuration
+print_message "Loading configuration..."
 CONFIG_FILE="./gateway_config.sh"
 if [[ -f "$CONFIG_FILE" ]]; then
     source "$CONFIG_FILE"
@@ -23,174 +123,53 @@ else
     exit 1
 fi
 
-print_message "Using VNC port: $VNC_PORT"
-print_message "Setting up VNC on Ubuntu 24.04..."
-
-# Update system
+# 2. System Update and Package Installation
 print_message "Updating package lists..."
-apt update
+apt-get update
 
-# Install required packages
 print_message "Installing required packages..."
-sudo apt install strongswan xl2tpd network-manager-l2tp iptables-persistent -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    strongswan \
+    xl2tpd \
+    network-manager-l2tp \
+    xfce4 \
+    xfce4-goodies \
+    dbus-x11 \
+    vim \
+    tigervnc-standalone-server \
+    remmina \
+    remmina-plugin-rdp \
+    remmina-plugin-vnc \
+    freerdp2-x11 \
+    ufw
 
-# Install netfilter-persistent for persistent iptables rules
-print_message "Installing netfilter-persistent..."
-apt install -y netfilter-persistent
-
-# Install desktop environment (XFCE) and D-Bus
-print_message "Installing XFCE desktop environment and dependencies..."
-apt install -y xfce4 xfce4-goodies dbus-x11 dbus
-
-# Install TigerVNC server
-print_message "Installing TigerVNC server..."
-apt install -y tigervnc-standalone-server
-
-# Install Remmina
-print_message "Installing Remmina with RDP support..."
-apt install -y remmina remmina-plugin-rdp remmina-plugin-vnc freerdp2-x11 libfreerdp-client2-2
-
-# Setup user if not existing
-print_message "Setting up user '$VNC_USER'..."
-if ! id "$VNC_USER" &>/dev/null; then
-    useradd -m -s /bin/bash "$VNC_USER"
-    print_message "User '$VNC_USER' created."
-fi
-echo "$VNC_USER:$VNC_PASSWORD" | chpasswd
-usermod -aG sudo "$VNC_USER"
-print_message "User '$VNC_USER' configured with necessary group memberships."
-
-# Create D-Bus directory
-mkdir -p /home/$VNC_USER/.dbus
-chown -R $VNC_USER:$VNC_USER /home/$VNC_USER/.dbus
-
-# Create XDG runtime directory
-mkdir -p /run/user/$(id -u $VNC_USER)
-chmod 700 /run/user/$(id -u $VNC_USER)
-chown $VNC_USER:$VNC_USER /run/user/$(id -u $VNC_USER)
-
-# Switch to the VNC user for VNC configuration
-print_message "Setting up VNC server..."
-su - "$VNC_USER" <<EOF
-# Create VNC directory
-mkdir -p ~/.vnc
-
-# Set VNC password
-echo "$VNC_PASSWORD" | vncpasswd -f > ~/.vnc/passwd
-chmod 600 ~/.vnc/passwd
-
-# Create xstartup file with D-Bus initialization
-cat > ~/.vnc/xstartup << 'XSTART'
-#!/bin/bash
-# Fix D-Bus issues
-export XDG_SESSION_TYPE=x11
-export XDG_RUNTIME_DIR=/run/user/\$(id -u)
-mkdir -p \$XDG_RUNTIME_DIR
-chmod 700 \$XDG_RUNTIME_DIR
-
-# Start D-Bus daemon
-if [ -x /usr/bin/dbus-launch ]; then
-    eval \$(dbus-launch --sh-syntax)
-    echo \$DBUS_SESSION_BUS_ADDRESS > ~/.dbus/session-bus-address
-fi
-
-# Unset problematic variables
-unset SESSION_MANAGER
-# We keep DBUS_SESSION_BUS_ADDRESS as we need it
-
-# Start window manager
-xrdb \$HOME/.Xresources 2>/dev/null || true
-xsetroot -solid grey
-exec startxfce4
-XSTART
-chmod +x ~/.vnc/xstartup
-
-# First time setup of the VNC server with custom port
-vncserver -localhost no -rfbport $VNC_PORT :1
-
-# Kill the server to update configuration
-vncserver -kill :1
-EOF
-
-# Create systemd service file with D-Bus environment setup
-print_message "Creating systemd service for VNC..."
-cat > /etc/systemd/system/vncserver@.service << EOF
-[Unit]
-Description=Start TigerVNC server at startup
-After=syslog.target network.target
-
-[Service]
-Type=forking
-User=$VNC_USER
-Group=$VNC_USER
-WorkingDirectory=/home/$VNC_USER
-
-# Environment setup for D-Bus
-Environment="XDG_RUNTIME_DIR=/run/user/$(id -u $VNC_USER)"
-Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u $VNC_USER)/bus"
-
-PIDFile=/home/$VNC_USER/.vnc/%H:%i.pid
-ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
-ExecStartPre=-/bin/mkdir -p /run/user/$(id -u $VNC_USER)
-ExecStartPre=-/bin/chmod 700 /run/user/$(id -u $VNC_USER)
-ExecStartPre=-/bin/chown $VNC_USER:$VNC_USER /run/user/$(id -u $VNC_USER)
-ExecStart=/usr/bin/vncserver -depth 24 -geometry $VNC_RESOLUTION -localhost no -rfbport $VNC_PORT :1
-ExecStop=/usr/bin/vncserver -kill :%i
-
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Enable and start VNC service
-print_message "Enabling and starting VNC service..."
-systemctl daemon-reload
-systemctl enable vncserver@1.service
-systemctl start vncserver@1.service
-
-# Wait a moment for service to start
-sleep 3
-
-# Check if VNC service started successfully
-if systemctl is-active --quiet vncserver@1.service; then
-    print_message "VNC service started successfully"
-else
-    print_warning "VNC service may have failed to start. Checking status..."
-    systemctl status vncserver@1.service || true
-fi
-
-# Configure firewall
-print_message "Configuring firewall..."
-apt install -y ufw
-ufw allow ${VNC_PORT}/tcp comment "VNC Server"
+# 3. Setup Firewall
+print_message "Configuring basic firewall rules..."
 ufw allow 22/tcp comment "SSH"
 ufw --force enable
+print_message "Firewall is active."
 
-# Show connection information
+# 4. Setup VNC Users based on config
+setup_vnc_user "$GATEWAY_USER" "$GATEWAY_PASSWORD" "$GATEWAY_VNC_DISPLAY" "$GATEWAY_VNC_RESOLUTION" "$GATEWAY_VNC_PORT"
+setup_vnc_user "$VNC_USER" "$VNC_PASSWORD" "$VNC_DISPLAY" "$VNC_RESOLUTION" "$VNC_PORT"
+
+# 5. Final Information
 IP_ADDRESS=$(hostname -I | awk '{print $1}')
-print_message "VNC setup complete!"
+print_message "--- Secure Remote Desktop Gateway Setup Complete ---"
+echo -e "-----------------------------------------------------"
+echo -e "${YELLOW}Gateway User Connection Details:${NC}"
+echo -e "  User:      ${GREEN}$GATEWAY_USER${NC}"
+echo -e "  Password:  ${GREEN}$GATEWAY_PASSWORD${NC}"
+echo -e "  Address:   ${GREEN}$IP_ADDRESS:$GATEWAY_VNC_PORT${NC} (Display :$GATEWAY_VNC_DISPLAY)"
+echo -e ""
+echo -e "${YELLOW}VNC User Connection Details:${NC}"
+echo -e "  User:      ${GREEN}$VNC_USER${NC}"
+echo -e "  Password:  ${GREEN}$VNC_PASSWORD${NC}"
+echo -e "  Address:   ${GREEN}$IP_ADDRESS:$VNC_PORT${NC} (Display :$VNC_DISPLAY)"
+echo -e "-----------------------------------------------------"
+echo -e "To check service status, run:"
+echo -e "  systemctl status vncserver-$GATEWAY_USER@$GATEWAY_VNC_DISPLAY.service"
+echo -e "  systemctl status vncserver-$VNC_USER@$VNC_DISPLAY.service"
+echo -e "-----------------------------------------------------"
 
-echo "-----------------------------------------------------"
-echo "VNC Server Details:"
-echo "  User: $VNC_USER"
-echo "  Password: $VNC_PASSWORD (you should change this!)"
-echo "  Address: $IP_ADDRESS:$VNC_PORT"
-echo ""
-echo "Connect using a VNC viewer like RealVNC, TigerVNC, or Remmina to:"
-echo "  $IP_ADDRESS:$VNC_PORT"
-echo ""
-echo "-----------------------------------------------------"
-echo "Service Management:"
-echo "  Check VNC service status: systemctl status vncserver@1.service"
-echo "  Restart VNC service: systemctl restart vncserver@1.service"
-echo "  Check VNC logs: cat /home/$VNC_USER/.vnc/*.log"
-echo ""
-echo "Debugging Commands:"
-echo "  Check if VNC is listening: netstat -tlnp | grep $VNC_PORT"
-echo "  List VNC sessions: vncserver -list"
-echo "  Manual start as user: su - $VNC_USER -c 'vncserver -localhost no -rfbport $VNC_PORT :1'"
-echo "-----------------------------------------------------"
-
-exit 0
+exit
