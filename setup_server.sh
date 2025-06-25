@@ -20,7 +20,7 @@ setup_vnc_user() {
     local PASSWORD=$2
     local DISPLAY_NUM=$3
     local RESOLUTION=$4
-    local PORT=$((5900 + DISPLAY_NUM))
+    local PORT=$5
 
     print_message "--- Setting up VNC for user '$USERNAME' on port $PORT (display :$DISPLAY_NUM) ---"
 
@@ -40,14 +40,30 @@ echo "$PASSWORD" | vncpasswd -f > /home/$USERNAME/.vnc/passwd
 chmod 600 /home/$USERNAME/.vnc/passwd
 
 cat > /home/$USERNAME/.vnc/xstartup << 'XSTART'
-#!/bin/bash
-xrdb \$HOME/.Xresources
+#!/bin/sh
+# This script is executed by the VNC server when a desktop session starts.
+# It launches the XFCE desktop environment.
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
-startxfce4 &
+[ -r \$HOME/.Xresources ] && xrdb \$HOME/.Xresources
+exec startxfce4
 XSTART
 
 chmod +x /home/$USERNAME/.vnc/xstartup
+
+# --- VNC Initialization ---
+# Forcefully kill any existing VNC server for this display to ensure a clean state.
+vncserver -kill :$DISPLAY_NUM >/dev/null 2>&1 || true
+sleep 1
+
+# Initialize the VNC server once to create necessary files.
+vncserver -rfbport $PORT :$DISPLAY_NUM
+
+# Wait a moment for the server to create its PID file before killing it.
+sleep 2
+
+# Kill the temporary server. The systemd service will manage the permanent one.
+vncserver -kill :$DISPLAY_NUM >/dev/null 2>&1 || true
 EOF
     print_message "VNC configured for user '$USERNAME'."
 
@@ -66,7 +82,7 @@ WorkingDirectory=/home/$USERNAME
 
 PIDFile=/home/$USERNAME/.vnc/%H:%i.pid
 ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
-ExecStart=/usr/bin/vncserver -depth 24 -geometry $RESOLUTION -localhost no :%i
+ExecStart=/usr/bin/vncserver -depth 24 -geometry $RESOLUTION -localhost no -rfbport $PORT :%i
 ExecStop=/usr/bin/vncserver -kill :%i
 Restart=on-failure
 RestartSec=5
@@ -80,6 +96,14 @@ EOF
     systemctl enable vncserver-$USERNAME@$DISPLAY_NUM.service
     systemctl restart vncserver-$USERNAME@$DISPLAY_NUM.service
     print_message "VNC service for '$USERNAME' enabled and started."
+
+    # Add a check to see if the service is active
+    sleep 3 # Give the service a moment to stabilize
+    if ! systemctl is-active --quiet vncserver-$USERNAME@$DISPLAY_NUM.service; then
+        print_error "VNC service for '$USERNAME' failed to start. Please check the logs with:"
+        echo "journalctl -xeu vncserver-$USERNAME@$DISPLAY_NUM.service"
+        exit 1
+    fi
 
     # 5. Configure firewall
     ufw allow "$PORT/tcp" comment "VNC for $USERNAME"
@@ -126,8 +150,8 @@ ufw --force enable
 print_message "Firewall is active."
 
 # 4. Setup VNC Users based on config
-setup_vnc_user "$GATEWAY_USER" "$GATEWAY_PASSWORD" "$GATEWAY_VNC_DISPLAY" "$GATEWAY_VNC_RESOLUTION"
-setup_vnc_user "$VNC_USER" "$VNC_PASSWORD" "$VNC_DISPLAY" "$VNC_RESOLUTION"
+setup_vnc_user "$GATEWAY_USER" "$GATEWAY_PASSWORD" "$GATEWAY_VNC_DISPLAY" "$GATEWAY_VNC_RESOLUTION" "$GATEWAY_VNC_PORT"
+setup_vnc_user "$VNC_USER" "$VNC_PASSWORD" "$VNC_DISPLAY" "$VNC_RESOLUTION" "$VNC_PORT"
 
 # 5. Final Information
 IP_ADDRESS=$(hostname -I | awk '{print $1}')
@@ -136,16 +160,16 @@ echo -e "-----------------------------------------------------"
 echo -e "${YELLOW}Gateway User Connection Details:${NC}"
 echo -e "  User:      ${GREEN}$GATEWAY_USER${NC}"
 echo -e "  Password:  ${GREEN}$GATEWAY_PASSWORD${NC}"
-echo -e "  Address:   ${GREEN}$IP_ADDRESS:$((5900 + GATEWAY_VNC_DISPLAY))${NC} (Display :$GATEWAY_VNC_DISPLAY)"
+echo -e "  Address:   ${GREEN}$IP_ADDRESS:$GATEWAY_VNC_PORT${NC} (Display :$GATEWAY_VNC_DISPLAY)"
 echo -e ""
 echo -e "${YELLOW}VNC User Connection Details:${NC}"
 echo -e "  User:      ${GREEN}$VNC_USER${NC}"
 echo -e "  Password:  ${GREEN}$VNC_PASSWORD${NC}"
-echo -e "  Address:   ${GREEN}$IP_ADDRESS:$((5900 + VNC_DISPLAY))${NC} (Display :$VNC_DISPLAY)"
+echo -e "  Address:   ${GREEN}$IP_ADDRESS:$VNC_PORT${NC} (Display :$VNC_DISPLAY)"
 echo -e "-----------------------------------------------------"
 echo -e "To check service status, run:"
 echo -e "  systemctl status vncserver-$GATEWAY_USER@$GATEWAY_VNC_DISPLAY.service"
 echo -e "  systemctl status vncserver-$VNC_USER@$VNC_DISPLAY.service"
 echo -e "-----------------------------------------------------"
 
-exit 0
+exit
