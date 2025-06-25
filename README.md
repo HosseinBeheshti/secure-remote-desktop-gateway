@@ -18,8 +18,8 @@ This repository provides scripts to automate the setup of a secure remote deskto
                                  [Firewall, UFW]
 ```
 
-- **Remote Client**: Your laptop/PC running Remmina or VNC viewer.
-- **Gateway Server**: Ubuntu server running VPN client, VNC server, and Remmina.
+- **Remote Client**: Your laptop/PC running VNC viewer.
+- **Gateway Server**: Ubuntu server running VPN client, TigerVNC server, and Remmina.
 - **Remote PC**: Target Windows PC accessible via RDP over VPN.
 
 ---
@@ -52,36 +52,45 @@ chmod +x *.sh
 
 ### 2. Configure VNC Settings
 
-Edit the gateway_config.sh file to update at least the VNC settings:
+Edit the gateway_config.sh file to update at least the basic settings:
 
 ```sh
 vim gateway_config.sh
 ```
 
 Make sure to set:
-- VNC_USER
-- VNC_PASSWORD (change from the default)
-- VNC_RESOLUTION
+- GATEWAY_USER and GATEWAY_PASSWORD (administrative user)
+- VNC_USER and VNC_PASSWORD (regular VNC user)
+- VNC ports and resolutions
+- Change all default passwords!
 
 ### 3. Run the Server Setup
 
-Run the server setup script to configure the VNC server:
+Run the server setup script to configure the dual-user VNC server:
 
 ```sh
 sudo ./setup_server.sh
 ```
 
-This installs all required packages, configures VNC, Remmina, and firewall.
+This installs all required packages, configures TigerVNC with two users, Remmina, and firewall.
 
 ### 4. Connect to the VNC Server
 
-For the remaining steps, you should connect to the VNC server that was just set up. Use your VNC client to connect to the server:
+After setup, you can connect to either VNC user:
 
+**Gateway User (Administrative)**:
 ```
-[Server IP]:[Server Port]
+[Server IP]:5910
+Username: gateway (or your configured GATEWAY_USER)
+Password: [your configured GATEWAY_PASSWORD]
 ```
 
-Use the VNC password you configured in `gateway_config.sh`.
+**Regular VNC User**:
+```
+[Server IP]:5911
+Username: vncuser (or your configured VNC_USER)  
+Password: [your configured VNC_PASSWORD]
+```
 
 ### 5. Clone the Complete Repository
 
@@ -93,23 +102,23 @@ git clone https://github.com/HosseinBeheshti/secure-remote-desktop-gateway.git
 cd secure-remote-desktop-gateway
 ```
 
-### 6. Configure Your Environment
+### 6. Configure Your VPN Environment
 
-⚠️ **IMPORTANT**: Before proceeding further, you MUST modify the `gateway_config.sh` file with your specific settings:
+⚠️ **IMPORTANT**: Before proceeding further, you MUST modify the `gateway_config.sh` file with your specific VPN settings:
 
 ```sh
 vim gateway_config.sh
 ```
 
 Make sure to set:
-- VPN server IP address
-- Server public IP address
-- Remote PC IP address 
-- Default gateway (get with `ip route | grep default | awk '{print $3}'`)
-- VPN credentials
-- Remote desktop credentials
+- SERVER_PUBLIC_IP (your server's public IP)
+- VPN_SERVER_PUBLIC_IP (VPN server IP address)
+- REMOTE_PC_IP (target PC IP address)
+- VPN_PPP_GATEWAY_IP (usually 192.168.150.1)
+- IPSEC_PSK (IPsec pre-shared key)
+- VPN_USERNAME and VPN_PASSWORD (VPN credentials)
 
-The scripts will not work correctly without these modifications!
+The VPN scripts will not work correctly without these modifications!
 
 ### 7. Make Scripts Executable
 
@@ -121,17 +130,17 @@ chmod +x *.sh
 
 ### 8. Set Up VPN and Remmina
 
-Run the combined VPN and Remmina setup script from the root of the cloned repository:
+Run the VPN setup script from the root of the cloned repository:
 
 ```sh
 sudo ./setup_vpn.sh
 ```
 
-This configures L2TP/IPsec VPN, policy routing, firewall rules, and Remmina without creating profiles.
+This configures L2TP/IPsec VPN, policy routing, firewall rules, and Remmina.
 
 ### 9. Troubleshoot (If Needed)
 
-If you have issues connecting with Remmina, run the simplified troubleshooting script:
+If you have issues connecting with Remmina, run the troubleshooting script:
 
 ```sh
 ./troubleshooting.sh
@@ -141,7 +150,51 @@ This script performs focused checks on:
 - VPN connection status (ppp0 interface)
 - IP routing to target PC
 - RDP port connectivity
-- Remmina connection test without requiring existing profiles
+- Remmina connection test
+
+---
+
+## Dual VNC User Setup
+
+The setup creates two VNC users for different purposes:
+
+### Gateway User (Administrative)
+- **Purpose**: Server administration and VPN management
+- **Port**: 5910 (Display :1)
+- **Resolution**: 1280x800 (configurable)
+- **Privileges**: Full sudo access
+- **Use Case**: Managing VPN connections, server configuration
+
+### VNC User (Regular)
+- **Purpose**: General remote desktop access
+- **Port**: 5911 (Display :2)  
+- **Resolution**: 1920x1080 (configurable)
+- **Privileges**: Standard user with sudo access
+- **Use Case**: Running Remmina, daily remote desktop tasks
+
+Both users can connect simultaneously without interfering with each other.
+
+---
+
+## Service Management
+
+Check VNC service status:
+```sh
+# Gateway user
+sudo systemctl status vncserver-gateway@1.service
+
+# Regular VNC user  
+sudo systemctl status vncserver-vncuser@2.service
+```
+
+Restart VNC services:
+```sh
+# Gateway user
+sudo systemctl restart vncserver-gateway@1.service
+
+# Regular VNC user
+sudo systemctl restart vncserver-vncuser@2.service
+```
 
 ---
 
@@ -150,29 +203,38 @@ This script performs focused checks on:
 - **Firewall**: The scripts configure UFW and remind you to set up cloud provider firewall rules.
 - **Persistence**: Routing and firewall rules are made persistent across reboots.
 - **Security**: Change all default passwords after setup.
-- **VNC**: Connect to the server's IP on port 5901 using the credentials set in [`gateway_config.sh`](gateway_config.sh).
-- **Remmina**: No profiles are created - use manual connection or the troubleshooting script for testing.
+- **VNC**: TigerVNC server is used for better performance and features.
+- **Multi-User**: Two separate VNC sessions can run simultaneously.
+- **Remmina**: Pre-installed and ready for RDP connections through VPN.
 
 ---
 
 ## File Overview
 
-- [`gateway_config.sh`](gateway_config.sh): All configuration variables.
-- [`setup_server.sh`](setup_server.sh): Installs and configures VNC, Remmina, firewall.
+- [`gateway_config.sh`](gateway_config.sh): All configuration variables for both VNC users and VPN.
+- [`setup_server.sh`](setup_server.sh): Installs and configures dual-user TigerVNC, Remmina, firewall.
 - [`setup_vpn.sh`](setup_vpn.sh): Sets up L2TP/IPsec VPN client, policy routing, and Remmina.
-- [`troubleshooting.sh`](troubleshooting.sh): Simplified VPN route and Remmina connectivity checker.
+- [`troubleshooting.sh`](troubleshooting.sh): VPN route and Remmina connectivity checker.
 
 ---
 
 ## Troubleshooting
 
+### VNC Issues
+- Check VNC service status: `sudo systemctl status vncserver-[username]@[display].service`
+- Check VNC logs: `cat /home/[username]/.vnc/*.log`
+- View systemd logs: `journalctl -xeu vncserver-[username]@[display].service`
+
+### VPN Issues
 - Check VPN status: `sudo ipsec statusall` or `ip addr show ppp0`
 - Check VPN routing: `ip route | grep ppp0`
 - Test target connectivity: `ping <REMOTE_PC_IP>`
 - Test RDP port: `nc -zv <REMOTE_PC_IP> 3389`
-- Check VNC logs: `cat /home/vncuser/.vnc/*.log`
-- Check Remmina logs: See Remmina GUI or run from terminal for output.
+
+### General Network
 - Inspect traffic: `sudo tcpdump -i any -nn -v host <REMOTE_PC_IP>`
+- Check firewall: `sudo ufw status verbose`
+- View routing tables: `ip route list table all`
 
 ---
 
