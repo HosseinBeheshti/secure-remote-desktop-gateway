@@ -108,11 +108,10 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     strongswan \
     xl2tpd \
     network-manager-l2tp \
-    iptables-persistent \
-    netfilter-persistent \
     xfce4 \
     xfce4-goodies \
     dbus-x11 \
+    vim \
     tigervnc-standalone-server \
     remmina \
     remmina-plugin-rdp \
