@@ -6,7 +6,7 @@ export GATEWAY_USER="gateway"
 export GATEWAY_PASSWORD="change_this_strong_password"
 export GATEWAY_VNC_PORT="5910"
 export GATEWAY_VNC_DISPLAY="1"
-export GATEWAY_VNC_RESOLUTION="1280x800"
+export GATEWAY_VNC_RESOLUTION="1920x1080"
 
 # --- VNC User (for general remote desktop use) ---
 # This user is for standard remote desktop access.
