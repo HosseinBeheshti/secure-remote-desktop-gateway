@@ -80,14 +80,14 @@ After setup, you can connect to either VNC user:
 
 **Gateway User (Administrative)**:
 ```
-[Server IP]:5910
+[Server IP]:GATEWAY_VNC_PORT
 Username: gateway (or your configured GATEWAY_USER)
 Password: [your configured GATEWAY_PASSWORD]
 ```
 
 **Regular VNC User**:
 ```
-[Server IP]:5911
+[Server IP]:VNC_PORT
 Username: vncuser (or your configured VNC_USER)  
 Password: [your configured VNC_PASSWORD]
 ```
