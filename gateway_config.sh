@@ -24,3 +24,6 @@ export REMOTE_PC_IP="YOUR_REMOTE_PC_IP"
 export IPSEC_PSK="YOUR_IPSEC_PSK"
 export VPN_USERNAME="vpn_username"
 export VPN_PASSWORD="vpn_password"
+
+# Applications to install and configure (space-separated)
+APPLICATION_LIST="remmina xrdp"
