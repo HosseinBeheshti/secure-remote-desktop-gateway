@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# root user password for initial setup
+# ROOT_PASSWORD='root_password'
+
 # --- Gateway User (for managing the server and VPN) ---
 # This user has full sudo access and is intended for server administration.
 export GATEWAY_USER="gateway"
