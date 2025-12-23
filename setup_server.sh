@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Master Setup Script for Secure Remote Desktop Gateway
+# This script orchestrates all setup scripts in the correct order
+# Run with: sudo ./setup_server.sh
+
 # Exit on any error
 set -e
 
@@ -7,169 +11,135 @@ set -e
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # --- Helper Functions ---
 print_message() { echo -e "${GREEN}[INFO]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+print_header() { echo -e "\n${BLUE}========================================${NC}"; echo -e "${BLUE}$1${NC}"; echo -e "${BLUE}========================================${NC}\n"; }
 
-# --- VNC User Setup Function ---
-setup_vnc_user() {
-    local USERNAME=$1
-    local PASSWORD=$2
-    local DISPLAY_NUM=$3
-    local RESOLUTION=$4
-    local PORT=$5
-
-    print_message "--- Setting up VNC for user '$USERNAME' on port $PORT (display :$DISPLAY_NUM) ---"
-
-    # 1. Create user if not exists
-    if ! id "$USERNAME" &>/dev/null; then
-        useradd -m -s /bin/bash "$USERNAME"
-        print_message "User '$USERNAME' created."
-    fi
-    echo "$USERNAME:$PASSWORD" | chpasswd
-    usermod -aG sudo "$USERNAME"
-    print_message "User '$USERNAME' configured with password and sudo privileges."
-
-    # 2. Configure VNC for the user
-    su - "$USERNAME" <<EOF
-mkdir -p /home/$USERNAME/.vnc
-echo "$PASSWORD" | vncpasswd -f > /home/$USERNAME/.vnc/passwd
-chmod 600 /home/$USERNAME/.vnc/passwd
-
-cat > /home/$USERNAME/.vnc/xstartup << 'XSTART'
-#!/bin/sh
-# This script is executed by the VNC server when a desktop session starts.
-# It launches the XFCE desktop environment.
-unset SESSION_MANAGER
-unset DBUS_SESSION_BUS_ADDRESS
-[ -r \$HOME/.Xresources ] && xrdb \$HOME/.Xresources
-exec startxfce4
-XSTART
-
-chmod +x /home/$USERNAME/.vnc/xstartup
-
-# --- VNC Initialization ---
-# Forcefully kill any existing VNC server for this display to ensure a clean state.
-vncserver -kill :$DISPLAY_NUM >/dev/null 2>&1 || true
-sleep 1
-
-# Initialize the VNC server once to create necessary files.
-vncserver -rfbport $PORT :$DISPLAY_NUM
-
-# Wait a moment for the server to create its PID file before killing it.
-sleep 2
-
-# Kill the temporary server. The systemd service will manage the permanent one.
-vncserver -kill :$DISPLAY_NUM >/dev/null 2>&1 || true
-EOF
-    print_message "VNC configured for user '$USERNAME'."
-
-    # 3. Create systemd service file for the user
-    print_message "Creating systemd service for '$USERNAME'..."
-    cat > /etc/systemd/system/vncserver-$USERNAME@.service << EOF
-[Unit]
-Description=TigerVNC server for user $USERNAME
-After=syslog.target network.target
-
-[Service]
-Type=forking
-User=$USERNAME
-Group=$USERNAME
-WorkingDirectory=/home/$USERNAME
-
-PIDFile=/home/$USERNAME/.vnc/%H:%i.pid
-ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
-ExecStart=/usr/bin/vncserver -depth 24 -geometry $RESOLUTION -localhost no -rfbport $PORT :%i
-ExecStop=/usr/bin/vncserver -kill :%i
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # 4. Enable and start the service
-    systemctl daemon-reload
-    systemctl enable vncserver-$USERNAME@$DISPLAY_NUM.service
-    systemctl restart vncserver-$USERNAME@$DISPLAY_NUM.service
-    print_message "VNC service for '$USERNAME' enabled and started."
-
-    # Add a check to see if the service is active
-    sleep 3 # Give the service a moment to stabilize
-    if ! systemctl is-active --quiet vncserver-$USERNAME@$DISPLAY_NUM.service; then
-        print_error "VNC service for '$USERNAME' failed to start. Please check the logs with:"
-        echo "journalctl -xeu vncserver-$USERNAME@$DISPLAY_NUM.service"
-        exit 1
-    fi
-
-    # 5. Configure firewall
-    ufw allow "$PORT/tcp" comment "VNC for $USERNAME"
-    print_message "Firewall rule added for port $PORT."
-}
-
-# --- Main Script ---
-
-# 1. Source configuration
-print_message "Loading configuration..."
-CONFIG_FILE="./gateway_config.sh"
-if [[ -f "$CONFIG_FILE" ]]; then
-    source "$CONFIG_FILE"
-    print_message "Configuration loaded from $CONFIG_FILE"
-else
-    print_error "Configuration file not found: $CONFIG_FILE"
+# --- Load Configuration ---
+print_message "Loading configuration from workstation.env..."
+ENV_FILE="./workstation.env"
+if [[ ! -f "$ENV_FILE" ]]; then
+    print_error "Configuration file not found: $ENV_FILE"
     exit 1
 fi
+source "$ENV_FILE"
+print_message "Configuration loaded successfully."
 
-# 2. System Update and Package Installation
-print_message "Updating package lists..."
-apt-get update
+# --- Check if running as root ---
+if [[ $EUID -ne 0 ]]; then
+   print_error "This script must be run as root (use sudo)"
+   exit 1
+fi
 
-print_message "Installing required packages..."
-DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    strongswan \
-    xl2tpd \
-    network-manager-l2tp \
-    xfce4 \
-    xfce4-goodies \
-    dbus-x11 \
-    vim \
-    tigervnc-standalone-server \
-    remmina \
-    remmina-plugin-rdp \
-    remmina-plugin-vnc \
-    freerdp2-x11 \
-    ufw
+# --- Check if all required scripts exist ---
+REQUIRED_SCRIPTS=("setup_vnc.sh" "setup_virtual_router.sh" "setup_l2tp.sh" "setup_ovpn.sh")
+for script in "${REQUIRED_SCRIPTS[@]}"; do
+    if [[ ! -f "./$script" ]]; then
+        print_error "Required script not found: $script"
+        exit 1
+    fi
+    # Make sure scripts are executable
+    chmod +x "./$script"
+done
 
-# 3. Setup Firewall
-print_message "Configuring basic firewall rules..."
-ufw allow 22/tcp comment "SSH"
-ufw --force enable
-print_message "Firewall is active."
+# --- Main Execution ---
+print_header "Starting Secure Remote Desktop Gateway Setup"
 
-# 4. Setup VNC Users based on config
-setup_vnc_user "$GATEWAY_USER" "$GATEWAY_PASSWORD" "$GATEWAY_VNC_DISPLAY" "$GATEWAY_VNC_RESOLUTION" "$GATEWAY_VNC_PORT"
-setup_vnc_user "$VNC_USER" "$VNC_PASSWORD" "$VNC_DISPLAY" "$VNC_RESOLUTION" "$VNC_PORT"
+# Step 1: Setup VNC Server with Users
+print_header "Step 1/4: Setting up VNC Server and Users"
+./setup_vnc.sh
+if [[ $? -ne 0 ]]; then
+    print_error "VNC setup failed!"
+    exit 1
+fi
+print_message "✓ VNC setup completed successfully"
 
-# 5. Final Information
+# Step 2: Setup Virtual Router
+print_header "Step 2/4: Setting up Virtual Router"
+./setup_virtual_router.sh
+if [[ $? -ne 0 ]]; then
+    print_error "Virtual Router setup failed!"
+    exit 1
+fi
+print_message "✓ Virtual Router setup completed successfully"
+
+# Step 3: Setup L2TP VPN (if configured)
+if [[ " $VPN_LIST " =~ " l2tp " ]]; then
+    print_header "Step 3/4: Setting up L2TP VPN"
+    ./setup_l2tp.sh
+    if [[ $? -ne 0 ]]; then
+        print_error "L2TP VPN setup failed!"
+        exit 1
+    fi
+    print_message "✓ L2TP VPN setup completed successfully"
+else
+    print_warning "Step 3/4: L2TP VPN not in VPN_LIST, skipping..."
+fi
+
+# Step 4: Setup OpenVPN (if configured)
+if [[ " $VPN_LIST " =~ " ovpn " ]]; then
+    print_header "Step 4/4: Setting up OpenVPN"
+    ./setup_ovpn.sh
+    if [[ $? -ne 0 ]]; then
+        print_error "OpenVPN setup failed!"
+        exit 1
+    fi
+    print_message "✓ OpenVPN setup completed successfully"
+else
+    print_warning "Step 4/4: OpenVPN not in VPN_LIST, skipping..."
+fi
+
+# --- Final Summary ---
+print_header "Setup Complete!"
+echo -e "${GREEN}All components have been successfully installed and configured!${NC}\n"
+
+echo -e "${YELLOW}Summary:${NC}"
+echo -e "  ✓ VNC Server with users"
+echo -e "  ✓ Virtual Router for VPN traffic"
+if [[ " $VPN_LIST " =~ " l2tp " ]]; then
+    echo -e "  ✓ L2TP VPN configured"
+fi
+if [[ " $VPN_LIST " =~ " ovpn " ]]; then
+    echo -e "  ✓ OpenVPN configured"
+fi
+echo ""
+
+# Display VNC user information
 IP_ADDRESS=$(hostname -I | awk '{print $1}')
-print_message "--- Secure Remote Desktop Gateway Setup Complete ---"
-echo -e "-----------------------------------------------------"
-echo -e "${YELLOW}Gateway User Connection Details:${NC}"
-echo -e "  User:      ${GREEN}$GATEWAY_USER${NC}"
-echo -e "  Password:  ${GREEN}$GATEWAY_PASSWORD${NC}"
-echo -e "  Address:   ${GREEN}$IP_ADDRESS:$GATEWAY_VNC_PORT${NC} (Display :$GATEWAY_VNC_DISPLAY)"
-echo -e ""
-echo -e "${YELLOW}VNC User Connection Details:${NC}"
-echo -e "  User:      ${GREEN}$VNC_USER${NC}"
-echo -e "  Password:  ${GREEN}$VNC_PASSWORD${NC}"
-echo -e "  Address:   ${GREEN}$IP_ADDRESS:$VNC_PORT${NC} (Display :$VNC_DISPLAY)"
-echo -e "-----------------------------------------------------"
-echo -e "To check service status, run:"
-echo -e "  systemctl status vncserver-$GATEWAY_USER@$GATEWAY_VNC_DISPLAY.service"
-echo -e "  systemctl status vncserver-$VNC_USER@$VNC_DISPLAY.service"
+echo -e "${YELLOW}VNC Connection Details:${NC}"
 echo -e "-----------------------------------------------------"
 
-exit
+for ((i=1; i<=VNC_USER_COUNT; i++)); do
+    username_var="VNCUSER${i}_USERNAME"
+    display_var="VNCUSER${i}_DISPLAY"
+    resolution_var="VNCUSER${i}_RESOLUTION"
+    port_var="VNCUSER${i}_PORT"
+    
+    username="${!username_var}"
+    display="${!display_var}"
+    resolution="${!resolution_var}"
+    port="${!port_var}"
+    
+    if [[ -n "$username" ]]; then
+        echo -e "  ${GREEN}User:${NC}       $username"
+        echo -e "  ${GREEN}Password:${NC}   [configured]"
+        echo -e "  ${GREEN}Address:${NC}    $IP_ADDRESS:$port (Display :$display)"
+        echo -e "  ${GREEN}Resolution:${NC} $resolution"
+        echo ""
+    fi
+done
+
+echo -e "${YELLOW}Next Steps:${NC}"
+echo -e "1. Connect to VNC using the details above"
+echo -e "2. For L2TP apps: Use run_l2tp.sh <app_name> from VNC session"
+echo -e "3. For OpenVPN apps: Use run_ovpn.sh <app_name> from VNC session"
+echo -e "4. Check service status: systemctl status vncserver-<username>@<display>.service"
+echo ""
+echo -e "${GREEN}Setup completed at $(date)${NC}"
+
+exit 0
