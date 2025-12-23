@@ -50,7 +50,7 @@ setup_vnc_user() {
     print_message "User '$USERNAME' configured with password and sudo privileges."
 
     # 2. Configure VNC for the user
-    su - "$USERNAME" bash <<EOFSU
+    sudo -u "$USERNAME" bash <<EOFSU
 mkdir -p ~/.vnc
 printf '%s' '$PASSWORD' | vncpasswd -f > ~/.vnc/passwd
 chmod 600 ~/.vnc/passwd
@@ -195,7 +195,7 @@ install_additional_apps_for_users() {
         case $app in
             docker)
                 print_message "Installing Docker Engine..."
-                su - "$first_username" bash <<'EOFDOCKER'
+                sudo -u "$first_username" bash <<'EOFDOCKER'
 # Install prerequisites
 sudo apt-get install -y ca-certificates curl gnupg
 
@@ -231,7 +231,7 @@ EOFDOCKER
             
             vscode)
                 print_message "Installing VS Code..."
-                su - "$first_username" bash <<'EOFVSCODE'
+                sudo -u "$first_username" bash <<'EOFVSCODE'
 # Install dependencies
 sudo apt-get install -y software-properties-common apt-transport-https wget
 
@@ -252,7 +252,7 @@ EOFVSCODE
             
             google-chrome-stable)
                 print_message "Installing Google Chrome..."
-                su - "$first_username" bash <<'EOFCHROME'
+                sudo -u "$first_username" bash <<'EOFCHROME'
 # Download and add Google Chrome signing key
 wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
 
@@ -270,7 +270,7 @@ EOFCHROME
             *)
                 # Install regular packages
                 print_message "Installing $app..."
-                su - "$first_username" -c "sudo apt-get install -y $app" || print_warning "Failed to install $app"
+                sudo -u "$first_username" bash -c "sudo apt-get install -y $app" || print_warning "Failed to install $app"
                 ;;
         esac
     done
