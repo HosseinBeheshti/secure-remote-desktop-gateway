@@ -61,7 +61,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     network-manager-openvpn \
     iptables \
     netfilter-persistent \
-    resolvconf
+    resolvconf \
+    ufw
 
 # Install applications specified in OVPN_APPS (remmina for remote desktop)
 if [[ -n "$OVPN_APPS" ]]; then
