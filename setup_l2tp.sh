@@ -88,10 +88,15 @@ if [[ -n "$L2TP_APPS" ]]; then
                 ;;
             "anydesk")
                 print_message "Installing AnyDesk..."
-                wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | apt-key add - 2>/dev/null || true
-                echo "deb http://deb.anydesk.com/ all main" > /etc/apt/sources.list.d/anydesk-stable.list
-                apt-get update
-                apt-get install -y anydesk || print_warning "AnyDesk installation failed"
+                if command -v wget &> /dev/null; then
+                    wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | apt-key add - 2>/dev/null || true
+                    echo "deb http://deb.anydesk.com/ all main" > /etc/apt/sources.list.d/anydesk-stable.list
+                    apt-get update
+                    apt-get install -y anydesk || print_warning "AnyDesk installation failed"
+                else
+                    print_warning "wget not available, skipping AnyDesk installation"
+                    print_message "Install wget first: apt-get install -y wget"
+                fi
                 ;;
             *)
                 print_message "Installing custom application: $app"
