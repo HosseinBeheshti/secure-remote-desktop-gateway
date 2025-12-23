@@ -212,14 +212,11 @@ echo '$first_password' | sudo -S apt-get install -y ca-certificates curl gnupg
 
 # Add Docker's official GPG key
 echo '$first_password' | sudo -S install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo -S gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo '$first_password' | sudo -S sh -c 'curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg'
 echo '$first_password' | sudo -S chmod a+r /etc/apt/keyrings/docker.gpg
 
 # Set up the Docker repository
-echo \
-  "deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  \$(. /etc/os-release && echo "\$VERSION_CODENAME") stable" | \
-  sudo -S tee /etc/apt/sources.list.d/docker.list > /dev/null
+echo '$first_password' | sudo -S sh -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list'
 
 # Install Docker Engine and Docker Compose
 echo '$first_password' | sudo -S apt-get update
@@ -245,11 +242,10 @@ EOFDOCKER
 echo '$first_password' | sudo -S apt-get install -y software-properties-common apt-transport-https wget
 
 # Add Microsoft GPG key
-wget -qO- https://packages.microsoft.com/keys/microsoft.asc | sudo -S gpg --dearmor -o /usr/share/keyrings/packages.microsoft.gpg
+echo '$first_password' | sudo -S sh -c 'wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/packages.microsoft.gpg'
 
 # Add VS Code repository
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | \
-  sudo -S tee /etc/apt/sources.list.d/vscode.list > /dev/null
+echo '$first_password' | sudo -S sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list'
 
 # Install VS Code
 echo '$first_password' | sudo -S apt-get update
@@ -263,10 +259,10 @@ EOFVSCODE
                 print_message "Installing Google Chrome..."
                 sudo -u "$first_username" bash <<EOFCHROME
 # Download and add Google Chrome signing key
-wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo -S apt-key add -
+echo '$first_password' | sudo -S sh -c 'wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -'
 
 # Add Google Chrome repository
-echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo -S tee /etc/apt/sources.list.d/google-chrome.list > /dev/null
+echo '$first_password' | sudo -S sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list'
 
 # Install Google Chrome
 echo '$first_password' | sudo -S apt-get update
