@@ -45,27 +45,27 @@ setup_vnc_user() {
         useradd -m -s /bin/bash "$USERNAME"
         print_message "User '$USERNAME' created."
     fi
-    echo "$USERNAME:$PASSWORD" | chpasswd
+    printf '%s:%s\n' "$USERNAME" "$PASSWORD" | chpasswd
     usermod -aG sudo "$USERNAME"
     print_message "User '$USERNAME' configured with password and sudo privileges."
 
     # 2. Configure VNC for the user
-    su - "$USERNAME" <<EOF
-mkdir -p /home/$USERNAME/.vnc
-echo "$PASSWORD" | vncpasswd -f > /home/$USERNAME/.vnc/passwd
-chmod 600 /home/$USERNAME/.vnc/passwd
+    su - "$USERNAME" bash <<EOFSU
+mkdir -p ~/.vnc
+printf '%s' '$PASSWORD' | vncpasswd -f > ~/.vnc/passwd
+chmod 600 ~/.vnc/passwd
 
-cat > /home/$USERNAME/.vnc/xstartup << 'XSTART'
+cat > ~/.vnc/xstartup << 'XSTART'
 #!/bin/sh
 # This script is executed by the VNC server when a desktop session starts.
 # It launches the XFCE desktop environment.
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
-[ -r \$HOME/.Xresources ] && xrdb \$HOME/.Xresources
+[ -r \\\$HOME/.Xresources ] && xrdb \\\$HOME/.Xresources
 exec startxfce4
 XSTART
 
-chmod +x /home/$USERNAME/.vnc/xstartup
+chmod +x ~/.vnc/xstartup
 
 # --- VNC Initialization ---
 # Forcefully kill any existing VNC server for this display to ensure a clean state.
@@ -80,7 +80,7 @@ sleep 2
 
 # Kill the temporary server. The systemd service will manage the permanent one.
 vncserver -kill :$DISPLAY_NUM >/dev/null 2>&1 || true
-EOF
+EOFSU
     print_message "VNC configured for user '$USERNAME'."
 
     # 3. Create systemd service file for the user
