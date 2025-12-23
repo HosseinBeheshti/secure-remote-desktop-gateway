@@ -246,8 +246,14 @@ netfilter-persistent save
 
 # --- Configure Firewall ---
 print_message "Configuring firewall for OpenVPN..."
-ufw allow 1194/udp comment "OpenVPN"
-ufw allow 443/tcp comment "OpenVPN TCP"
+if command -v ufw &> /dev/null; then
+    ufw allow 1194/udp comment "OpenVPN"
+    ufw allow 443/tcp comment "OpenVPN TCP"
+    print_message "Firewall rules added for OpenVPN"
+else
+    print_warning "ufw not available, skipping firewall rules. Please configure manually:"
+    print_warning "  Allow UDP port: 1194, TCP port: 443"
+fi
 
 print_message "=== OpenVPN Client Setup Complete ==="
 echo ""

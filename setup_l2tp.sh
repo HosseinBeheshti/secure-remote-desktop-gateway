@@ -67,7 +67,11 @@ if [[ -n "$L2TP_APPS" ]]; then
                 print_message "Installing xRDP server..."
                 apt-get install -y xrdp
                 systemctl enable xrdp
-                ufw allow 3389/tcp comment "xRDP"
+                if command -v ufw &> /dev/null; then
+                    ufw allow 3389/tcp comment "xRDP"
+                else
+                    print_warning "ufw not available, skipping firewall rule for xRDP"
+                fi
                 print_message "xRDP installed and configured"
                 ;;
             "remmina")
@@ -238,9 +242,15 @@ netfilter-persistent save
 
 # --- Configure Firewall ---
 print_message "Configuring firewall for L2TP..."
-ufw allow 500/udp comment "IPsec"
-ufw allow 1701/udp comment "L2TP"
-ufw allow 4500/udp comment "IPsec NAT-T"
+if command -v ufw &> /dev/null; then
+    ufw allow 500/udp comment "IPsec"
+    ufw allow 1701/udp comment "L2TP"
+    ufw allow 4500/udp comment "IPsec NAT-T"
+    print_message "Firewall rules added for L2TP/IPsec"
+else
+    print_warning "ufw not available, skipping firewall rules. Please configure manually:"
+    print_warning "  Allow UDP ports: 500, 1701, 4500"
+fi
 
 # --- Load Kernel Modules ---
 print_message "Loading kernel modules..."
