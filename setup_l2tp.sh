@@ -266,6 +266,11 @@ print_message "Enabling VPN services..."
 systemctl enable strongswan-starter
 systemctl enable xl2tpd
 
+# Restart strongswan to load new configuration
+print_message "Restarting strongSwan to load configuration..."
+systemctl restart strongswan-starter
+sleep 2
+
 print_message "=== L2TP/IPsec VPN Setup Complete ==="
 echo ""
 echo -e "${GREEN}Setup completed successfully!${NC}"

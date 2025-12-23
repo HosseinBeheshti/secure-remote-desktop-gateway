@@ -57,8 +57,13 @@ trap cleanup EXIT INT TERM
 
 # --- Start Services ---
 print_message "Starting L2TP VPN services..."
-systemctl start strongswan-starter
-systemctl start xl2tpd
+systemctl restart strongswan-starter
+systemctl restart xl2tpd
+sleep 3
+
+# Reload ipsec configuration
+print_message "Loading IPsec configuration..."
+ipsec reload 2>/dev/null || ipsec restart 2>/dev/null || true
 sleep 2
 
 # --- Establish VPN Connection ---
