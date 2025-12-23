@@ -149,6 +149,99 @@ ufw allow 22/tcp comment "SSH"
 ufw --force enable
 print_message "Firewall is active."
 
+# --- Additional Applications Installation ---
+install_additional_apps() {
+    print_message "Installing additional applications..."
+    
+    if [[ -z "$ADDITIONAL_APPS" ]]; then
+        print_message "No additional applications specified."
+        return
+    fi
+    
+    for app in $ADDITIONAL_APPS; do
+        case $app in
+            docker)
+                print_message "Installing Docker Engine..."
+                # Install prerequisites
+                apt-get install -y ca-certificates curl gnupg
+                
+                # Add Docker's official GPG key
+                install -m 0755 -d /etc/apt/keyrings
+                curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                chmod a+r /etc/apt/keyrings/docker.gpg
+                
+                # Set up the Docker repository
+                echo \
+                  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+                  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+                  tee /etc/apt/sources.list.d/docker.list > /dev/null
+                
+                # Install Docker Engine and Docker Compose
+                apt-get update
+                apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+                
+                # Add VNC users to docker group
+                if [[ -n "$VNC_USERS" ]]; then
+                    IFS=';' read -ra USER_ENTRIES <<< "$VNC_USERS"
+                    for user_entry in "${USER_ENTRIES[@]}"; do
+                        IFS=':' read -r username _ _ _ _ <<< "$user_entry"
+                        if [[ -n "$username" ]]; then
+                            usermod -aG docker "$username" 2>/dev/null || true
+                        fi
+                    done
+                fi
+                
+                print_message "Docker installed successfully."
+                ;;
+            
+            vscode)
+                print_message "Installing VS Code..."
+                # Install dependencies
+                apt-get install -y software-properties-common apt-transport-https wget
+                
+                # Add Microsoft GPG key
+                wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /usr/share/keyrings/packages.microsoft.gpg
+                
+                # Add VS Code repository
+                echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | \
+                  tee /etc/apt/sources.list.d/vscode.list > /dev/null
+                
+                # Install VS Code
+                apt-get update
+                apt-get install -y code
+                
+                print_message "VS Code installed successfully."
+                ;;
+            
+            google-chrome-stable)
+                print_message "Installing Google Chrome..."
+                # Download and add Google Chrome signing key
+                wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+                
+                # Add Google Chrome repository
+                echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+                
+                # Install Google Chrome
+                apt-get update
+                apt-get install -y google-chrome-stable
+                
+                print_message "Google Chrome installed successfully."
+                ;;
+            
+            *)
+                # Install regular packages
+                print_message "Installing $app..."
+                apt-get install -y "$app" || print_warning "Failed to install $app"
+                ;;
+        esac
+    done
+    
+    print_message "Additional applications installation complete."
+}
+
+# Install additional applications
+install_additional_apps
+
 # Parse VNC_USERS and setup each user
 print_message "Setting up VNC users from configuration..."
 if [[ -z "$VNC_USERS" ]]; then
