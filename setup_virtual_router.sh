@@ -149,8 +149,8 @@ echo -e "To view all tables: ${GREEN}cat /etc/iproute2/rt_tables${NC}"
 echo -e "To view specific table routes: ${GREEN}ip route show table vpn_<type>${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo -e "  1. Run ${GREEN}run_l2tp.sh${NC} to configure L2TP VPN"
-echo -e "  2. Run ${GREEN}run_ovpn.sh${NC} to configure OpenVPN"
+echo -e "  1. Run ${GREEN}setup_l2tp.sh${NC} to configure L2TP VPN"
+echo -e "  2. Run ${GREEN}setup_ovpn.sh${NC} to configure OpenVPN"
 echo ""
 
 exit 0
