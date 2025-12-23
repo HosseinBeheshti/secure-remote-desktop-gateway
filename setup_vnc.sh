@@ -191,7 +191,9 @@ install_additional_apps_for_users() {
     
     # Get the first VNC user to run installations
     first_username_var="VNCUSER1_USERNAME"
+    first_password_var="VNCUSER1_PASSWORD"
     first_username="${!first_username_var}"
+    first_password="${!first_password_var}"
     
     if [[ -z "$first_username" ]]; then
         print_error "No VNC user found to install applications"
@@ -204,24 +206,24 @@ install_additional_apps_for_users() {
         case $app in
             docker)
                 print_message "Installing Docker Engine..."
-                sudo -u "$first_username" bash <<'EOFDOCKER'
+                sudo -u "$first_username" bash <<EOFDOCKER
 # Install prerequisites
-sudo apt-get install -y ca-certificates curl gnupg
+echo '$first_password' | sudo -S apt-get install -y ca-certificates curl gnupg
 
 # Add Docker's official GPG key
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo '$first_password' | sudo -S install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo -S gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo '$first_password' | sudo -S chmod a+r /etc/apt/keyrings/docker.gpg
 
 # Set up the Docker repository
 echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  "deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  \$(. /etc/os-release && echo "\$VERSION_CODENAME") stable" | \
+  sudo -S tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 # Install Docker Engine and Docker Compose
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+echo '$first_password' | sudo -S apt-get update
+echo '$first_password' | sudo -S apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 EOFDOCKER
                 
                 # Add all VNC users to docker group
@@ -238,20 +240,20 @@ EOFDOCKER
             
             vscode)
                 print_message "Installing VS Code..."
-                sudo -u "$first_username" bash <<'EOFVSCODE'
+                sudo -u "$first_username" bash <<EOFVSCODE
 # Install dependencies
-sudo apt-get install -y software-properties-common apt-transport-https wget
+echo '$first_password' | sudo -S apt-get install -y software-properties-common apt-transport-https wget
 
 # Add Microsoft GPG key
-wget -qO- https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/packages.microsoft.gpg
+wget -qO- https://packages.microsoft.com/keys/microsoft.asc | sudo -S gpg --dearmor -o /usr/share/keyrings/packages.microsoft.gpg
 
 # Add VS Code repository
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | \
-  sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
+  sudo -S tee /etc/apt/sources.list.d/vscode.list > /dev/null
 
 # Install VS Code
-sudo apt-get update
-sudo apt-get install -y code
+echo '$first_password' | sudo -S apt-get update
+echo '$first_password' | sudo -S apt-get install -y code
 EOFVSCODE
                 
                 print_message "VS Code installed successfully."
@@ -259,16 +261,16 @@ EOFVSCODE
             
             google-chrome-stable)
                 print_message "Installing Google Chrome..."
-                sudo -u "$first_username" bash <<'EOFCHROME'
+                sudo -u "$first_username" bash <<EOFCHROME
 # Download and add Google Chrome signing key
-wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo -S apt-key add -
 
 # Add Google Chrome repository
-echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list > /dev/null
+echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo -S tee /etc/apt/sources.list.d/google-chrome.list > /dev/null
 
 # Install Google Chrome
-sudo apt-get update
-sudo apt-get install -y google-chrome-stable
+echo '$first_password' | sudo -S apt-get update
+echo '$first_password' | sudo -S apt-get install -y google-chrome-stable
 EOFCHROME
                 
                 print_message "Google Chrome installed successfully."
@@ -277,7 +279,7 @@ EOFCHROME
             *)
                 # Install regular packages
                 print_message "Installing $app..."
-                sudo -u "$first_username" bash -c "sudo apt-get install -y $app" || print_warning "Failed to install $app"
+                sudo -u "$first_username" bash -c "echo '$first_password' | sudo -S apt-get install -y $app" || print_warning "Failed to install $app"
                 ;;
         esac
     done
