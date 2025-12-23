@@ -149,21 +149,30 @@ ufw allow 22/tcp comment "SSH"
 ufw --force enable
 print_message "Firewall is active."
 
-# Parse VNC_USERS and setup each user
+# Parse VNC users and setup each user
 print_message "Setting up VNC users from configuration..."
-if [[ -z "$VNC_USERS" ]]; then
-    print_error "VNC_USERS not defined in $ENV_FILE"
+if [[ -z "$VNC_USER_COUNT" ]]; then
+    print_error "VNC_USER_COUNT not defined in $ENV_FILE"
     exit 1
 fi
 
-# Split users by semicolon
-IFS=';' read -ra USER_ENTRIES <<< "$VNC_USERS"
-for user_entry in "${USER_ENTRIES[@]}"; do
-    # Split user details by colon: username:password:display:resolution:port
-    IFS=':' read -r username password display resolution port <<< "$user_entry"
+# Loop through each user based on VNC_USER_COUNT
+for ((i=1; i<=VNC_USER_COUNT; i++)); do
+    # Get user variables dynamically
+    username_var="VNCUSER${i}_USERNAME"
+    password_var="VNCUSER${i}_PASSWORD"
+    display_var="VNCUSER${i}_DISPLAY"
+    resolution_var="VNCUSER${i}_RESOLUTION"
+    port_var="VNCUSER${i}_PORT"
+    
+    username="${!username_var}"
+    password="${!password_var}"
+    display="${!display_var}"
+    resolution="${!resolution_var}"
+    port="${!port_var}"
     
     if [[ -z "$username" || -z "$password" || -z "$display" || -z "$resolution" || -z "$port" ]]; then
-        print_warning "Skipping invalid user entry: $user_entry"
+        print_warning "Skipping user $i: incomplete configuration"
         continue
     fi
     
@@ -181,8 +190,8 @@ install_additional_apps_for_users() {
     fi
     
     # Get the first VNC user to run installations
-    IFS=';' read -ra USER_ENTRIES <<< "$VNC_USERS"
-    IFS=':' read -r first_username _ _ _ _ <<< "${USER_ENTRIES[0]}"
+    first_username_var="VNCUSER1_USERNAME"
+    first_username="${!first_username_var}"
     
     if [[ -z "$first_username" ]]; then
         print_error "No VNC user found to install applications"
@@ -216,15 +225,13 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 EOFDOCKER
                 
                 # Add all VNC users to docker group
-                if [[ -n "$VNC_USERS" ]]; then
-                    IFS=';' read -ra USER_ENTRIES <<< "$VNC_USERS"
-                    for user_entry in "${USER_ENTRIES[@]}"; do
-                        IFS=':' read -r username _ _ _ _ <<< "$user_entry"
-                        if [[ -n "$username" ]]; then
-                            usermod -aG docker "$username" 2>/dev/null || true
-                        fi
-                    done
-                fi
+                for ((i=1; i<=VNC_USER_COUNT; i++)); do
+                    username_var="VNCUSER${i}_USERNAME"
+                    username="${!username_var}"
+                    if [[ -n "$username" ]]; then
+                        usermod -aG docker "$username" 2>/dev/null || true
+                    fi
+                done
                 
                 print_message "Docker installed successfully."
                 ;;
@@ -288,9 +295,19 @@ echo -e "-----------------------------------------------------"
 echo -e "${YELLOW}VNC User Connection Details:${NC}"
 echo ""
 
-IFS=';' read -ra USER_ENTRIES <<< "$VNC_USERS"
-for user_entry in "${USER_ENTRIES[@]}"; do
-    IFS=':' read -r username password display resolution port <<< "$user_entry"
+for ((i=1; i<=VNC_USER_COUNT; i++)); do
+    username_var="VNCUSER${i}_USERNAME"
+    password_var="VNCUSER${i}_PASSWORD"
+    display_var="VNCUSER${i}_DISPLAY"
+    resolution_var="VNCUSER${i}_RESOLUTION"
+    port_var="VNCUSER${i}_PORT"
+    
+    username="${!username_var}"
+    password="${!password_var}"
+    display="${!display_var}"
+    resolution="${!resolution_var}"
+    port="${!port_var}"
+    
     if [[ -n "$username" ]]; then
         echo -e "  ${GREEN}User:${NC}       $username"
         echo -e "  ${GREEN}Password:${NC}   $password"

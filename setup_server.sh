@@ -114,9 +114,17 @@ IP_ADDRESS=$(hostname -I | awk '{print $1}')
 echo -e "${YELLOW}VNC Connection Details:${NC}"
 echo -e "-----------------------------------------------------"
 
-IFS=';' read -ra USER_ENTRIES <<< "$VNC_USERS"
-for user_entry in "${USER_ENTRIES[@]}"; do
-    IFS=':' read -r username password display resolution port <<< "$user_entry"
+for ((i=1; i<=VNC_USER_COUNT; i++)); do
+    username_var="VNCUSER${i}_USERNAME"
+    display_var="VNCUSER${i}_DISPLAY"
+    resolution_var="VNCUSER${i}_RESOLUTION"
+    port_var="VNCUSER${i}_PORT"
+    
+    username="${!username_var}"
+    display="${!display_var}"
+    resolution="${!resolution_var}"
+    port="${!port_var}"
+    
     if [[ -n "$username" ]]; then
         echo -e "  ${GREEN}User:${NC}       $username"
         echo -e "  ${GREEN}Password:${NC}   [configured]"
