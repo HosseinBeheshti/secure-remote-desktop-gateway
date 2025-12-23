@@ -56,8 +56,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     network-manager-l2tp \
     iptables \
     netfilter-persistent \
-    netcat-openbsd \
-    ufw
+    netcat-openbsd
 
 # Install applications specified in L2TP_APPS (xrdp for remote desktop)
 if [[ -n "$L2TP_APPS" ]]; then
