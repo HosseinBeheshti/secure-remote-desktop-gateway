@@ -139,6 +139,14 @@ echo -e "1. Connect to VNC using the details above"
 echo -e "2. Run VPN: ${GREEN}sudo ./run_vpn.sh${NC} (interactive selection of VPN type and apps)"
 echo -e "3. Check service status: systemctl status vncserver-<username>@<display>.service"
 echo ""
+
+# --- Cleanup: Remove workstation.env from root ---
+if [[ -f "/root/workstation.env" ]]; then
+    print_message "Removing workstation.env from root directory for security..."
+    rm -f /root/workstation.env
+    print_message "✓ Configuration file cleaned up"
+fi
+
 echo -e "${GREEN}Setup completed at $(date)${NC}"
 
 exit 0
