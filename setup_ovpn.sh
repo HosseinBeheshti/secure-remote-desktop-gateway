@@ -63,10 +63,10 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     netfilter-persistent \
     resolvconf
 
-# Install applications specified in OVPN_APPS (remmina for remote desktop)
-if [[ -n "$OVPN_APPS" ]]; then
-    print_message "Installing applications for OpenVPN: $OVPN_APPS"
-    for app in $OVPN_APPS; do
+# Install applications specified in VPN_APPS
+if [[ -n "$VPN_APPS" ]]; then
+    print_message "Installing VPN applications: $VPN_APPS"
+    for app in $VPN_APPS; do
         case $app in
             "remmina")
                 print_message "Installing Remmina..."
@@ -223,9 +223,9 @@ fi
 # --- Configure Application Traffic Forwarding ---
 print_message "Configuring application traffic forwarding..."
 
-# Mark traffic for OpenVPN apps
-if [[ -n "$OVPN_APPS" ]]; then
-    for app in $OVPN_APPS; do
+# Mark traffic for VPN apps when routing through OpenVPN
+if [[ -n "$VPN_APPS" ]]; then
+    for app in $VPN_APPS; do
         print_message "Setting up traffic marking for: $app"
         
         # Create a wrapper script for the application
@@ -262,7 +262,7 @@ echo -e "To connect to VPN, run: ${GREEN}sudo ./run_vpn.sh${NC} (select OpenVPN 
 echo ""
 echo -e "${YELLOW}Configuration:${NC}"
 echo -e "  Config: $OVPN_CONFIG_PATH"
-echo -e "  Applications: $OVPN_APPS"
+echo -e "  VPN Apps: $VPN_APPS"
 echo -e "  Routing Table: $OVPN_TABLE"
 echo ""
 

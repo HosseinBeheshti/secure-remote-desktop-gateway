@@ -55,39 +55,29 @@ select_vpn_type() {
     print_message "Selected VPN type: $VPN_TYPE"
 }
 
-# --- App Selection ---
-select_app() {
-    local vpn_type=$1
-    
-    # Get available apps based on VPN type
-    if [[ "$vpn_type" == "l2tp" ]]; then
-        available_apps=($L2TP_APPS)
-    else
-        available_apps=($OVPN_APPS)
+# --- Confirm routing all apps through VPN ---
+confirm_routing() {
+    echo ""
+    if [[ -z "$VPN_APPS" ]]; then
+        print_warning "No applications configured in VPN_APPS"
+        print_message "VPN will connect without application routing"
+        return
     fi
     
-    echo ""
-    print_header "Select Application to route through VPN (or press Enter for none):"
-    echo "  0) None - Just connect VPN"
-    
+    print_header "Applications that will be routed through $VPN_TYPE:"
     local i=1
-    for app in "${available_apps[@]}"; do
+    for app in $VPN_APPS; do
         echo "  $i) $app"
         ((i++))
     done
     
     echo ""
-    read -p "Enter your choice (0-$((${#available_apps[@]}))): " app_choice
+    echo -e "${YELLOW}All listed applications will have traffic routed through the VPN${NC}"
+    read -p "Continue? (y/n): " confirm
     
-    if [[ "$app_choice" == "0" || -z "$app_choice" ]]; then
-        VPN_APP=""
-        print_message "No specific application selected"
-    elif [[ "$app_choice" =~ ^[0-9]+$ ]] && [ "$app_choice" -ge 1 ] && [ "$app_choice" -le "${#available_apps[@]}" ]; then
-        VPN_APP="${available_apps[$((app_choice-1))]}"
-        print_message "Selected application: $VPN_APP"
-    else
-        print_error "Invalid choice"
-        exit 1
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        print_message "VPN connection cancelled"
+        exit 0
     fi
 }
 
@@ -129,8 +119,8 @@ connect_l2tp() {
         echo -e "${YELLOW}Gateway:${NC} ${L2TP_PPP_GATEWAY}"
         echo -e "${YELLOW}Routing Table:${NC} $L2TP_TABLE"
         
-        if [[ -n "$VPN_APP" ]]; then
-            echo -e "${YELLOW}Routing App:${NC} $VPN_APP"
+        if [[ -n "$VPN_APPS" ]]; then
+            echo -e "${YELLOW}Routing Apps:${NC} $VPN_APPS"
         fi
         
         if [[ -n "$REMOTE_PC_IP" ]]; then
@@ -232,8 +222,8 @@ connect_ovpn() {
         echo -e "${YELLOW}Config:${NC} $OVPN_CONFIG_PATH"
         echo -e "${YELLOW}Routing Table:${NC} $OVPN_TABLE"
         
-        if [[ -n "$VPN_APP" ]]; then
-            echo -e "${YELLOW}Routing App:${NC} $VPN_APP"
+        if [[ -n "$VPN_APPS" ]]; then
+            echo -e "${YELLOW}Routing Apps:${NC} $VPN_APPS"
         fi
         
         echo ""
@@ -296,10 +286,12 @@ display_status_info() {
         echo -e "  View logs: ${GREEN}tail -f /tmp/ovpn-up.log${NC}"
     fi
     
-    if [[ -n "$VPN_APP" ]]; then
+    if [[ -n "$VPN_APPS" ]]; then
         echo ""
-        echo -e "${GREEN}Run your selected app through VPN:${NC}"
-        echo -e "  ${GREEN}${VPN_APP}-vpn${NC}"
+        echo -e "${GREEN}Apps routed through VPN:${NC}"
+        for app in $VPN_APPS; do
+            echo -e "  ${GREEN}${app}${NC}"
+        done
     fi
     echo ""
 }
@@ -327,8 +319,8 @@ echo -e "${CYAN}========================================${NC}"
 # Select VPN type
 select_vpn_type
 
-# Select app to route through VPN
-select_app "$VPN_TYPE"
+# Confirm routing configuration
+confirm_routing
 
 echo ""
 print_message "Starting VPN connection..."

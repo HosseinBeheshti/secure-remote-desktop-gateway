@@ -37,14 +37,12 @@ L2TP_SERVER_IP="vpn.example.com"
 L2TP_IPSEC_PSK="preshared-key"
 L2TP_USERNAME="username"
 L2TP_PASSWORD="password"
-L2TP_APPS="xrdp"  # Apps to route through L2TP
 
 # OpenVPN
 OVPN_CONFIG_PATH="/etc/openvpn/client/config.ovpn"
-OVPN_APPS="remmina firefox"  # Apps to route through OpenVPN
 
-# Dynamic VPN app selection (set at runtime by run_vpn.sh)
-VPN_APP=""
+# VPN Applications - routed through selected VPN at runtime
+VPN_APPS="xrdp remmina firefox vscode google-chrome-stable"
 ```
 
 ## Usage
@@ -59,7 +57,7 @@ sudo ./setup_server.sh
 # Universal VPN manager
 sudo ./run_vpn.sh
 # - Select VPN type (L2TP or OpenVPN)
-# - Select app to route through VPN
+# - All apps in VPN_APPS will be routed through selected VPN
 # - Press Ctrl+C to disconnect
 
 # VNC
