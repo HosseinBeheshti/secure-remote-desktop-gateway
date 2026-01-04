@@ -58,10 +58,10 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     netfilter-persistent \
     netcat-openbsd
 
-# Install applications specified in L2TP_APPS (xrdp for remote desktop)
-if [[ -n "$L2TP_APPS" ]]; then
-    print_message "Installing applications for L2TP: $L2TP_APPS"
-    for app in $L2TP_APPS; do
+# Install applications specified in VPN_APPS
+if [[ -n "$VPN_APPS" ]]; then
+    print_message "Installing VPN applications: $VPN_APPS"
+    for app in $VPN_APPS; do
         case $app in
             "xrdp")
                 print_message "Installing xRDP server..."
@@ -229,9 +229,9 @@ print_message "PPP routing script created."
 # --- Configure Application Traffic Forwarding ---
 print_message "Configuring application traffic forwarding..."
 
-# Mark traffic for L2TP apps
-if [[ -n "$L2TP_APPS" ]]; then
-    for app in $L2TP_APPS; do
+# Mark traffic for VPN apps when routing through L2TP
+if [[ -n "$VPN_APPS" ]]; then
+    for app in $VPN_APPS; do
         print_message "Setting up traffic marking for: $app"
         
         # Mark traffic destined to remote PC
@@ -274,12 +274,12 @@ sleep 2
 print_message "=== L2TP/IPsec VPN Setup Complete ==="
 echo ""
 echo -e "${GREEN}Setup completed successfully!${NC}"
-echo -e "To connect to L2TP VPN, run: ${GREEN}sudo ./run_l2tp.sh${NC}"
+echo -e "To connect to VPN, run: ${GREEN}sudo ./run_vpn.sh${NC} (select L2TP when prompted)"
 echo ""
 echo -e "${YELLOW}Configuration:${NC}"
 echo -e "  Server: $L2TP_SERVER_IP"
 echo -e "  Username: $L2TP_USERNAME"
-echo -e "  Applications: $L2TP_APPS"
+echo -e "  VPN Apps: $VPN_APPS"
 echo -e "  Routing Table: $L2TP_TABLE"
 echo ""
 
