@@ -7,7 +7,7 @@ Ubuntu/Debian server setup for VNC desktop with VPN-routed applications.
 1. **Configure** `workstation.env`
 2. **Setup**: `sudo ./setup_server.sh`
 3. **Connect VNC**: `vncviewer server-ip:5910`
-4. **Run VPNs**: `sudo ./run_l2tp.sh` and/or `sudo ./run_ovpn.sh`
+4. **Run VPN**: `sudo ./run_vpn.sh` (interactive selection)
 
 ## Scripts
 
@@ -19,8 +19,7 @@ Ubuntu/Debian server setup for VNC desktop with VPN-routed applications.
 - `setup_ovpn.sh` - OpenVPN client
 
 ### Runtime
-- `run_l2tp.sh` - Connect L2TP VPN
-- `run_ovpn.sh` - Connect OpenVPN
+- `run_vpn.sh` - Universal VPN connection manager (interactive selection)
 
 ## Configuration
 
@@ -42,7 +41,10 @@ L2TP_APPS="xrdp"  # Apps to route through L2TP
 
 # OpenVPN
 OVPN_CONFIG_PATH="/etc/openvpn/client/config.ovpn"
-OVPN_APPS="remmina"  # Apps to route through OpenVPN
+OVPN_APPS="remmina firefox"  # Apps to route through OpenVPN
+
+# Dynamic VPN app selection (set at runtime by run_vpn.sh)
+VPN_APP=""
 ```
 
 ## Usage
@@ -54,13 +56,13 @@ sudo ./setup_server.sh
 
 ### Daily Use
 ```bash
-# Terminal 1: L2TP
-sudo ./run_l2tp.sh
+# Universal VPN manager
+sudo ./run_vpn.sh
+# - Select VPN type (L2TP or OpenVPN)
+# - Select app to route through VPN
+# - Press Ctrl+C to disconnect
 
-# Terminal 2: OpenVPN
-sudo ./run_ovpn.sh
-
-# Terminal 3: VNC
+# VNC
 vncviewer server-ip:5910
 ```
 

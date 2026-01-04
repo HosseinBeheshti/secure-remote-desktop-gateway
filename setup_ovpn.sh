@@ -258,7 +258,7 @@ fi
 print_message "=== OpenVPN Client Setup Complete ==="
 echo ""
 echo -e "${GREEN}Setup completed successfully!${NC}"
-echo -e "To connect to OpenVPN, run: ${GREEN}sudo ./run_ovpn.sh${NC}"
+echo -e "To connect to VPN, run: ${GREEN}sudo ./run_vpn.sh${NC} (select OpenVPN when prompted)"
 echo ""
 echo -e "${YELLOW}Configuration:${NC}"
 echo -e "  Config: $OVPN_CONFIG_PATH"

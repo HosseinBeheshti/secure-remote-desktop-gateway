@@ -274,7 +274,7 @@ sleep 2
 print_message "=== L2TP/IPsec VPN Setup Complete ==="
 echo ""
 echo -e "${GREEN}Setup completed successfully!${NC}"
-echo -e "To connect to L2TP VPN, run: ${GREEN}sudo ./run_l2tp.sh${NC}"
+echo -e "To connect to VPN, run: ${GREEN}sudo ./run_vpn.sh${NC} (select L2TP when prompted)"
 echo ""
 echo -e "${YELLOW}Configuration:${NC}"
 echo -e "  Server: $L2TP_SERVER_IP"

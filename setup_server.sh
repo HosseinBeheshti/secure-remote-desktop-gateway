@@ -136,9 +136,8 @@ done
 
 echo -e "${YELLOW}Next Steps:${NC}"
 echo -e "1. Connect to VNC using the details above"
-echo -e "2. For L2TP apps: Use run_l2tp.sh <app_name> from VNC session"
-echo -e "3. For OpenVPN apps: Use run_ovpn.sh <app_name> from VNC session"
-echo -e "4. Check service status: systemctl status vncserver-<username>@<display>.service"
+echo -e "2. Run VPN: ${GREEN}sudo ./run_vpn.sh${NC} (interactive selection of VPN type and apps)"
+echo -e "3. Check service status: systemctl status vncserver-<username>@<display>.service"
 echo ""
 echo -e "${GREEN}Setup completed at $(date)${NC}"
 

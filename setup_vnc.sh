@@ -141,7 +141,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     dbus-x11 \
     vim \
     tigervnc-standalone-server \
-    ufw
+    ufw \
+    firefox
 
 # Setup Firewall
 print_message "Configuring basic firewall rules..."
