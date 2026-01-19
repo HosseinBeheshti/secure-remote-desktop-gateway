@@ -164,11 +164,6 @@ ip route add default via "$VPN_GW" dev "$dev" table "$OVPN_TABLE" 2>/dev/null ||
 # Add routing rule for marked traffic
 ip rule add fwmark "$OVPN_FWMARK" table "$OVPN_TABLE" 2>/dev/null || true
 
-# Add specific route for remote PC if configured
-if [[ -n "$REMOTE_PC_IP" ]]; then
-    ip route add "${REMOTE_PC_IP}/32" via "$VPN_GW" dev "$dev" 2>/dev/null || true
-fi
-
 # Flush routing cache
 ip route flush cache
 
@@ -209,7 +204,6 @@ chmod +x /etc/openvpn/client/ovpn-down.sh
 cat > /root/ovpn-env.conf <<EOF
 OVPN_TABLE="$OVPN_TABLE"
 OVPN_FWMARK="$OVPN_FWMARK"
-REMOTE_PC_IP="$REMOTE_PC_IP"
 EOF
 
 # Add script directives to config

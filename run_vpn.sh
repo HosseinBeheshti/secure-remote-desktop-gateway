@@ -123,10 +123,10 @@ connect_l2tp() {
             echo -e "${YELLOW}Routing Apps:${NC} $VPN_APPS"
         fi
         
-        if [[ -n "$REMOTE_PC_IP" ]]; then
-            echo -e "${YELLOW}Remote PC:${NC} $REMOTE_PC_IP"
-            print_message "Testing connectivity to $REMOTE_PC_IP..."
-            if ping -c 2 -W 3 "$REMOTE_PC_IP" >/dev/null 2>&1; then
+        if [[ -n "$L2TP_REMOTE_PC_IP" ]]; then
+            echo -e "${YELLOW}Remote PC:${NC} $L2TP_REMOTE_PC_IP"
+            print_message "Testing connectivity to $L2TP_REMOTE_PC_IP..."
+            if ping -c 2 -W 3 "$L2TP_REMOTE_PC_IP" >/dev/null 2>&1; then
                 print_message "✓ Remote PC is reachable"
             else
                 print_warning "✗ Remote PC is not reachable"

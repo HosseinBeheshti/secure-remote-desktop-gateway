@@ -209,8 +209,8 @@ if [ "\$IFNAME" = "ppp0" ]; then
     ip rule add fwmark $L2TP_FWMARK table $L2TP_TABLE 2>/dev/null || true
     
     # Add specific route for remote PC if configured
-    if [ -n "${REMOTE_PC_IP}" ]; then
-        ip route add ${REMOTE_PC_IP}/32 via "\$VPN_GATEWAY" dev ppp0 2>/dev/null || true
+    if [ -n "${L2TP_REMOTE_PC_IP}" ]; then
+        ip route add ${L2TP_REMOTE_PC_IP}/32 via "\$VPN_GATEWAY" dev ppp0 2>/dev/null || true
     fi
     
     # Flush routing cache
@@ -235,8 +235,8 @@ if [[ -n "$VPN_APPS" ]]; then
         print_message "Setting up traffic marking for: $app"
         
         # Mark traffic destined to remote PC
-        if [[ -n "$REMOTE_PC_IP" ]]; then
-            iptables -t mangle -A OUTPUT -d "${REMOTE_PC_IP}/32" -j MARK --set-mark $L2TP_FWMARK 2>/dev/null || true
+        if [[ -n "$L2TP_REMOTE_PC_IP" ]]; then
+            iptables -t mangle -A OUTPUT -d "${L2TP_REMOTE_PC_IP}/32" -j MARK --set-mark $L2TP_FWMARK 2>/dev/null || true
         fi
     done
 fi
